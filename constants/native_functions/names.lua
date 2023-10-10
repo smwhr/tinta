@@ -1,0 +1,37 @@
+function not_implemented()
+    error("Not implemented yet")
+end
+
+return {
+    ["+"] = not_implemented,
+    ["-"] = not_implemented,
+    ["/"] = not_implemented,
+    ["*"] = not_implemented,
+    ["%"] = not_implemented,
+    ["_"] = not_implemented,
+    ["=="] = not_implemented,
+    [">"] = not_implemented,
+    ["<"] = not_implemented,
+    [">="] = not_implemented,
+    ["<="] = not_implemented,
+    ["!="] = not_implemented,
+    ["!"] = not_implemented,
+    ["&&"] = not_implemented,
+    ["||"] = not_implemented,
+    ["MIN"] = not_implemented,
+    ["MAX"] = not_implemented,
+    ["POW"] = not_implemented,
+    ["FLOOR"] = not_implemented,
+    ["CEILING"] = not_implemented,
+    ["INT"] = not_implemented,
+    ["FLOAT"] = not_implemented,
+    ["?"] = not_implemented,
+    ["!?"] = not_implemented,
+    ["^"] = not_implemented,
+    ["LIST_MIN"] = not_implemented,
+    ["LIST_MAX"] = not_implemented,
+    ["LIST_ALL"] = not_implemented,
+    ["LIST_COUNT"] = not_implemented,
+    ["LIST_VALUE"] = not_implemented,
+    ["LIST_INVERT"] = not_implemented,
+}

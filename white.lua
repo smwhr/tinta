@@ -1,0 +1,1 @@
+return {["inkVersion"] = 20,["root"] = {{{["->"] = "firstKnot"},{"done",{["#n"] = "g-0"}},"TERM"},"done",{["firstKnot"] = {"^Hello!","\n",{["->"] = "anotherKnot"},"TERM"},["anotherKnot"] = {"^World.","\n","end","TERM"}}},["listDefs"] = {}}
