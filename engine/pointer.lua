@@ -24,9 +24,8 @@ function Pointer:Resolve()
     if self.index < 1 then return self.container end
     if self.container == nil then return nil end
     if #(self.container.content) == 0 then return self.container end
-    if self.index >= #self.container.content then return nil end
-
-    print("Found a", dump(self.container.content[self.index]) , "in ",self.container.content)
+    if self.index > #self.container.content then return nil end
+    
     return self.container.content[self.index]
 end
 

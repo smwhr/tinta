@@ -1,5 +1,6 @@
 local lume = require('libs.lume')
 local classic = require('libs.classic')
+local inkutils = require('libs.inkutils')
 local PRNG = require('libs.prng')
 local dump = require('libs.dump')
 
@@ -91,7 +92,7 @@ function Story:ContinueInternal()
     repeat
         outputStreamEndsInNewline = self:ContinueSingleStep();
         if outputStreamEndsInNewline then break end
-    until self:canContinue()
+    until not self:canContinue()
 
     if outputStreamEndsInNewline or not self:canContinue() then
         self.state._previousText = nil
@@ -106,7 +107,6 @@ function Story:ContinueSingleStep()
     end
 
     if not self.state:inStringEvaluation() then
-        if self.state:currentText() == "" then return true end
         if self.state._previousText ~= nil then
             local change = self:CalculateNewlineOutputStateChange(
                 self.state._previousText,
@@ -118,10 +118,6 @@ function Story:ContinueSingleStep()
             elseif change == "NewlineRemoved" then
                 self.state._previousText = nil
             end
-            print("Previous", self.state._previousText)
-            print("Current", self.state:currentText())
-            print(change)
-            return true
         end
         
         if self.state:outputStreamEndsInNewline() then
@@ -142,13 +138,6 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText)
         and currText:sub(#currText, #currText) == "\n"
     )
 
-    print(
-        currText,
-        #currText >= #prevText,
-        #prevText > 0,
-        "|"..currText:sub(#currText, #currText) .. "|"
-    )
-
     if #prevText == #currText and newLineStillExists then return "NoChange" end
     if not newLineStillExists then return "NewLineRemoved" end
 
@@ -159,8 +148,10 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText)
     return "NoChange"
 end
 
+local iStep = 0
 function Story:Step()
-    print("==============Step=================")
+    iStep = iStep + 1
+    print("==============Step", iStep, "=================")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
 
@@ -169,14 +160,14 @@ function Story:Step()
     end
 
     -- Container
-    containerToEnter = pointer:Resolve()
+    containerToEnter = inkutils.asOrNil(pointer:Resolve(), Container)
 
     while containerToEnter and containerToEnter:is(Container) do
         self:VisitContainer(containerToEnter, true)
         if #containerToEnter.content == 0 then break end
 
         pointer = Pointer:StartOf(containerToEnter):Copy()
-        containerToEnter = pointer:Resolve()
+        containerToEnter = inkutils.asOrNil(pointer:Resolve(), Container)
     end
 
     self.state:setCurrentPointer(pointer:Copy())
@@ -274,20 +265,11 @@ function Story:VisitChangedContainersDueToDivert()
     self.prevContainers = {}
     if not previousPointer:isNull() then
         local resolvedPreviousAncestor = previousPointer:Resolve()
-        local prevAncestor = nil
-        if resolvedPreviousAncestor:is(Container) then
-            prevAncestor = resolvedPreviousAncestor
-        elseif previousPointer.container:is(Container) then
-            prevAncestor = previousPointer.container
-        end
+        local prevAncestor = inkutils.asOrNil(resolvedPreviousAncestor, Container) or inkutils.asOrNil(previousPointer.container, Container)
+
         while prevAncestor do
             table.insert(self.prevContainers, prevAncestor)
-            if prevAncestor.parent == nil then break end
-            if prevAncestor.parent:is(Container) then
-                prevAncestor = prevAncestor.parent
-            else
-                break
-            end
+            prevAncester = inkutils.asOrNil(prevAncestor.parent, Container)
         end
     end
 
@@ -295,11 +277,11 @@ function Story:VisitChangedContainersDueToDivert()
     
     if currentChildOfContainer == nil then return end
 
-    local currentContainerAncestor = currentChildOfContainer.parent
+    local currentContainerAncestor = inkutils.asOrNil(currentChildOfContainer.parent, Container)
     local allChildrenEnteredAtStart = true
 
     while (
-        currentContainerAncestor:is(Container)
+        currentContainerAncestor
         and (
                not lume.find(self.prevContainers, currentContainerAncestor)
             or currentContainerAncestor.countingAtStartOnly
@@ -314,7 +296,7 @@ function Story:VisitChangedContainersDueToDivert()
         if not enteringAtStart then allChildrenEnteredAtStart = false end
 
         currentChildOfContainer = currentContainerAncestor
-        currentContainerAncestor = currentContainerAncestor.parent
+        currentContainerAncestor = inkutils.asOrNil(currentContainerAncestor.parent)
     end
 
 end
@@ -326,9 +308,10 @@ function Story:IncrementContentPointer()
 
     while pointer.index > #pointer.container.content do
         successfulIncrement = false
-        if pointer.container.parent == nil then break end
-        if not pointer.container.parent:is(Container) then break end
-        local nextAncestor = pointer.container.parent
+        
+        local nextAncestor = inkutils.asOrNil(pointer.container.parent, Containter)
+        if nextAncestor == nil then break end
+
         local indexInAncestor = lume.find(nextAncestor.content, pointer.container)
         if indexInAncestor == nil then break end
 
@@ -340,7 +323,7 @@ function Story:IncrementContentPointer()
     
     if not successfulIncrement then pointer = Pointer:Null() end
     
-    self.state.callStack:currentElement().currentPointer = pointer:Copy()
+    self.state:setCurrentPointer(pointer:Copy())
     
     return successfulIncrement
 end
@@ -919,21 +902,22 @@ function JArrayToContainer(jArray)
     container:AddContent(JArrayToRuntimeObjList(jArray, true))
 
     local terminatingObj = jArray[#jArray]
-    if not terminatingObj == "TERM" then
+    if not (terminatingObj == "TERM") then
         local namedOnlyContent = {}
         for key, value in pairs(terminatingObj) do
             if key == "#f" then
-                container.setCountFlags(terminatingObj[key]) 
+                container:setCountFlags(terminatingObj[key]) 
             elseif key == "#n" then
                 container.name = tostring(terminatingObj[key])
             else
                 local namedContentItem = JTokenToRuntimeObject(terminatingObj[key])
-                if namedContentItem.is(Container) then
+                if namedContentItem:is(Container) then
                     namedContentItem.name = key
                 end
                 namedOnlyContent[key] = namedContentItem
             end
         end
+        container:setNamedOnlyContent(namedOnlyContent)
     end
     return container
 end

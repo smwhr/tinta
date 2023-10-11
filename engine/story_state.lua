@@ -287,7 +287,6 @@ end
 
 
 function StoryState:canContinue()
-    print(dump(self:currentPointer()))
     return not (self:currentPointer():isNull())  
             and not self:hasError()
 end

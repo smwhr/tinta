@@ -1,5 +1,6 @@
 local lume = require('libs.lume')
 local classic = require('libs.classic')
+local inkutils = require('libs.inkutils')
 
 local SearchResult = require('values.search_result')
 
@@ -60,11 +61,8 @@ function Container:ContentAtPath(path, partialStart, partialEnd)
         end
 
         currentObj = foundObj
-        if currentObj:is(Container) then
-            currentContainer = currentObj
-        else
-            currentContainer = nil
-        end
+        currentContainer = inkutils.asOrNil(currentObj, Container)
+        
     end
     result.obj = currentObj
     return result
@@ -86,6 +84,44 @@ function Container:ContentWithPathComponent(component)
         end
         return foundContent
     end
+end
+
+function Container:namedOnlyContent()
+    local namedOnlyContentDict = {}
+
+    for key, inkObj in ipairs(self.namedContent) do
+        namedOnlyContentDict[key] = inkObj
+    end
+
+    for _,c in ipairs(self.content) do
+        if c.name ~= nil then
+            namedOnlyContentDict[c.name] = nil
+        end
+    end
+
+    if #namedOnlyContentDict == 0 then return nil end
+    return namedOnlyContentDict
+end
+
+function Container:setNamedOnlyContent(value)
+    local existingNamedOnly = self:namedOnlyContent()
+    if existingNamedOnly ~= nil then
+        for k,_ in ipairs(existingNamedOnly) do
+            self.namedContent[k] = nil
+        end
+    end
+    if value == nil then return end
+
+    for _,val in ipairs(value) do
+        if val.name ~= nil then
+            self:AddToNamedContentOnly(val)
+        end
+    end
+end
+
+function Container:AddToNamedContentOnly(namedContentObj)
+    namedContentObj.parent = self
+    self.namedContent[namedContentObj.name] = namedContentObj
 end
 
 function Container:setCountFlags(flag)

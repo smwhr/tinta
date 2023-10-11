@@ -1,5 +1,7 @@
 local classic = require('libs.classic')
 local lume = require('libs.lume')
+local inkutils = require('libs.inkutils')
+
 local BaseValue = require('values.base')
 local Container = require('values.container')
 
@@ -98,8 +100,8 @@ function Path:of(element)
         else
             local comps = {}
             local child = element
-            local container = child.parent
-            while container:is(Container) do
+            local container = inkutils.asOrNil(child.parent, Container)
+            while container ~= nil do
                 if container.name then
                     table.insert(comps, 1, PathComponent(container.name))
                 else
@@ -107,7 +109,7 @@ function Path:of(element)
                     table.insert(comps, 1, PathComponent(childIndex))
                 end
                 child = container
-                container = container.parent
+                container = inkutils.asOrNil(container.parent, Container)
             end
             element.path = Path:fromPathComponents(comps)
         end
@@ -120,11 +122,7 @@ function Path:rootAncestorOf(obj)
     while ancestor.parent ~= nil do
         ancestor = ancestor.parent
     end
-    if ancestor:is(Container) then
-        return ancestor
-    else
-        return nil
-    end
+    return inkutils.asOrNil(ancestor, Container)
 end
 
 function Path:Resolve(obj, path)
@@ -132,12 +130,12 @@ function Path:Resolve(obj, path)
         error("Can't resolve a nil path")
     end
     if path.isRelative then
-        local nearestContainer = obj
-        if not nearestContainer:is(Container) then
+        local nearestContainer = inkutils.asOrNil(obj, Container)
+        if nearestContainer == nil then
             if obj.parent == nil then
                 error("Can't resolve relative path because we don't have a parent")
             end
-            nearestContainer = obj.parent
+            nearestContainer = inkutils.asOrNil(obj.parent, Container)
             if not nearestContainer:is(Container) then
                 error("Expected parent to be a container")
             end

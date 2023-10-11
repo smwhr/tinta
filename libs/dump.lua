@@ -14,9 +14,9 @@ function _dump(o)
        return s .. '} '
    elseif address == "Container" then
       if o.name then
-         s = s .. "Container(" .. o.name .. ")"
+         s = s .. "Containere(" .. o.name .. ")"
       else
-         s = s .. "Container"
+         s = s .. "Containere"
       end
       return s .. "[" .. _dump(o.content) .. "]"
    else
