@@ -9,9 +9,64 @@ local Pointer = require('engine.pointer')
 local StringValue = require('values.string')
 local Glue = require('values.glue')
 local CommandControl = require('values.control_command')
-local ListValue = require('values.list.list')
+local ListValue = require('values.list.list_value')
 
 local CommandControlType = require('constants.control_commands.types')
+
+
+---@class StatePatch
+local StatePatch = classic:extend()
+
+function StatePatch:new(toCopy)
+    if toCopy ~= nil then
+        self._globals = lume.clone(toCopy._globals)
+        self._changedVariables = lume.unique(toCopy._changedVariables)
+        self._visitCounts = lume.clone(toCopy._visitCounts)
+        self._turnIndices = lume.clone(toCopy._turnIndices)
+    else
+        self._globals = {}
+        self._changedVariables =  {}
+        self._visitCounts = {}
+        self._turnIndices = {}
+    end
+end
+
+function StatePatch:TryGetGlobal(name, value)
+    if name ~= nil and self._globals[name] ~= nil then
+        return {result=self._globals[name], exists= true}
+    end
+    return {result=value, exists= false}
+end
+
+function StatePatch:SetGlobal(name, value)
+    self._globals[names] = value
+end
+
+function StatePatch:AddChangedVariable(name)
+    self._changedVariables = lume.unique(table.insert(self._changedVariables, name))
+end
+
+function StatePatch:TryGetVisitCount(container, count)
+    if self._visitCounts[container] ~= nil then
+        return {result=self._visitCounts[container], exists= true}
+    end
+    return {result=count, exists= false}
+end
+
+function StatePatch:SetVisitCount(container, count)
+    self._visitCounts[container] = count
+end
+
+function StatePatch:TryGetTurnIndex(container, index)
+    if self._turnIndices[container] ~= nil then
+        return {result=self._turnIndices[container], exists= true}
+    end
+    return {result=index, exists= false}
+end
+
+function StatePatch:SetTurnIndex(container, index)
+    self._turnIndices[container] = index
+end
 
 ---@class StoryState
 local StoryState = classic:extend()
@@ -28,6 +83,7 @@ function StoryState:new(story)
     self.turnIndices = {}
     self.currentTurnIndex = -1 -- actual -1
     
+    self._patch = nil
     self.didSafeExit = false
     self.outputStream = {}
     self.outputStreamTextDirty = true
@@ -39,6 +95,7 @@ function StoryState:new(story)
     self.currentWarnings = {}
 
     self._currentText = nil
+    self._currentTags = nil
 
     self.divertedPointer = Pointer:Null()
 
@@ -47,7 +104,7 @@ end
 
 function StoryState:GoToStart()
     self.callStack:currentElement().currentPointer = Pointer:StartOf(
-            self.story.mainContentContainer
+            self.story:mainContentContainer()
     )
 end
 
@@ -78,6 +135,42 @@ function StoryState:currentText()
     return self._currentText
 end
 
+function StoryState:currentTags()
+    if self.outputStreamTagsDirty then
+        self._currentTags = {}
+        local inTag = false
+        local sb = {}
+        for _, outputObj in pairs(self.outputStream) do
+            if outputObj:is(ControlCommand) then
+                local controlCommand = outputObj
+                if controlCommand.value == CommandControlType.BeginTag then
+                    if inTag and #sb > 0 then
+                        local txt = self:CleanOutputWhitespace(table.concat(sb))
+                        table.insert(self._currentTags, txt)
+                        sb = {}
+                    end
+                    inTag = true
+                elseif controlCommand.value == CommandControlType.EndTag then
+                    if #sb > 0 then
+                        local txt = self:CleanOutputWhitespace(table.concat(sb))
+                        table.insert(self._currentTags, txt)
+                        sb = {}
+                    end
+                    inTag = false
+                end
+
+            elseif inTag then
+                if outputObj:is(StringValue) then
+                    table.insert(sb, outputObj.value)
+                end
+            elseif outputObj:is(Tag) and #outputObj.text > 0 then
+                table.insert(self._currentTags, outputObj.text)
+            end
+        end
+    end
+    return self._currentTags
+end
+
 function StoryState:currentPointer()
     return self.callStack:currentElement().currentPointer
 end
@@ -87,11 +180,11 @@ function StoryState:setCurrentPointer(pointer)
 end
 
 function StoryState:previousPointer()
-    return self.callStack.currentThread.previousPointer
+    return self.callStack:currentThread().previousPointer
 end
 
 function StoryState:setPreviousPointer(pointer)
-    self.callStack.currentThread.previousPointer = pointer:Copy()
+    self.callStack:currentThread().previousPointer = pointer:Copy()
 end
 
 function StoryState:ResetOutput() --add parameter when needed
@@ -106,12 +199,15 @@ end
 
 function StoryState:PushToOutputStream(obj)
     if obj and obj:is(StringValue) then
+        local text = obj
         local listText = TrySplittingHeadTailWhitespace(obj)
-        for i, textObj in ipairs(listText) do
-            self:PushToOutputStreamIndividual(textObj)
+        if listText ~= nil then
+            for i, textObj in ipairs(listText) do
+                self:PushToOutputStreamIndividual(textObj)
+            end
+            self:OutputStreamDirty()
+            return
         end
-        self:OutputStreamDirty()
-        return
     end
     self:PushToOutputStreamIndividual(obj)
     self:OutputStreamDirty()
@@ -315,15 +411,28 @@ function StoryState:VisitCountForContainer(container)
     if not container.visitsShouldBeCounted then
         error("The story may need to be compiled with countAllVisits")
     end
+
+    if self._patch ~= nil then
+        local count = self._patch:TryGetVisitCount(container, 0)
+        if count.exists then return count.result end
+    end
+
     local containerPathStr = Path:of(container):componentString()
-    local count2 = self.visitCounts[containerPathStr]
-    if count2 ~= nil then
-        return count2
+    local count = self.visitCounts[containerPathStr]
+    if count ~= nil then
+        return count
     else
         return 0
     end
 end
-function StoryState:IncrementVisitCountForContainer()
+function StoryState:IncrementVisitCountForContainer(container)
+    if self._patch ~= nil then
+        local currCount = self:VisitCountForContainer(container)
+        currCount = currCount + 1
+        self._patch:SetVisitCount(container, currCount)
+        return
+    end
+
     local containerPathStr = Path:of(container):componentString()
     local count = self.visitCounts[containerPathStr]
     if count ~= nil then
@@ -332,11 +441,34 @@ function StoryState:IncrementVisitCountForContainer()
         self.visitCounts[containerPathStr] = 1
     end
 end
-function StoryState:RecordTurnIndexVisitToContainer()
+function StoryState:RecordTurnIndexVisitToContainer(container)
+    if self._patch ~= nil then
+        self._patch:SetTurnIndex(container, self.currentTurnIndex)
+        return
+    end
+
     local containerPathStr = Path:of(container):componentString()
     self.turnIndices[containerPathStr] = self.currentTurnIndex
 end
 
+function StoryState:TurnsSinceForContainer(container)
+    if not container.turnIndexShouldBeCounted then
+        error("The story may need to be compiled with countAllVisits")
+    end
+
+    if self._patch ~= nil then
+        local index = self._patch:TryGetTurnIndex(container, 0)
+        if index.exists then return index.result end
+    end
+
+    local containerPathStr = Path:of(container):componentString()
+    local index = self.turnIndices[containerPathStr]
+    if index ~= nil then
+        return self.currentTurnIndex - index
+    else
+        return -1 -- true -1
+    end
+end
 
 function StoryState:PopEvaluationStack(numberOfObjects)
     if numberOfObjects == nil then
@@ -398,30 +530,189 @@ function StoryState:__tostring()
     return "StoryState"
 end
 
-
-function TrySplittingHeadTailWhitespace(stringValue)
-    local text = stringValue.value
-    local lines = lume.split(text, "\n")
+function StoryState:CleanOutputWhitespace(str)
     local sb = {}
-    for i, line in ipairs(lines) do
-        local trimmed = lume.trim(line)
+    local currentWhitespaceStart = 0
+    local startOfLine = 0
 
-        if i == 1 and (lume.charAt(line,1) == " " or lume.charAt(line,1) == "\t") then
-            table.insert(sb, StringValue(" "))
+    for i=1, #str do
+        local c = str:sub(i,i)
+        local isInlineWhiteSpace = c == " " or c == "\t"
+        if isInlineWhiteSpace and currentWhitespaceStart == 0 then
+            currentWhitespaceStart = i
         end
-        
-        if trimmed ~= "" then
-            table.insert(sb, StringValue(trimmed))
+        if not isInlineWhiteSpace then
+            if (
+                c ~= "\n"
+                and currentWhitespaceStart > 1
+                and currentWhitespaceStart ~= startOfLine
+            ) then
+                list.insert(sb, " ")
+            end
+            currentWhitespaceStart = 0
         end
 
-        table.insert(sb, StringValue("\n"))
-        
-        if i == #lines and (lume.charAt(line, #line) == " " or lume.charAt(line, #line) == "\t") then
-            table.insert(sb, StringValue(" "))
+        if c == "\n" then startOfLine = i + 1 end
+
+        if not isInlineWhiteSpace then
+            list.insert(sb, c)
         end
-        
     end
-    return sb
+    return table.concat(sb)
+end
+
+function TrySplittingHeadTailWhitespace(single)
+    local str = single.value
+    
+    local headFirstNewlineIdx = 0
+    local headLastNewlineIdx = 0
+    
+    for i = 1, #str do
+        local c = str:sub(i,i)
+        if c == "\n" then
+            if headFirstNewlineIdx == 0 then headFirstNewlineIdx = i end
+            headLastNewlineIdx = i
+        elseif c == " " or c == "\t " then
+            --continuee
+        else 
+            break
+        end
+    end
+    
+    local tailLastNewlineIdx = 0
+    local tailFirstNewlineIdx = 0
+
+    for i = #str, 1, -1 do
+        local c = str:sub(i,i)
+        if c == "\n" then
+            if tailLastNewlineIdx == 0 then tailLastNewlineIdx = i end
+            tailFirstNewlineIdx = i
+        elseif c == " " or c == "\t " then
+            --continuee
+        else 
+            break
+        end
+    end
+
+    if headFirstNewlineIdx == 0 and tailLastNewlineIdx == 0 then return nil end
+
+    local listTexts = {}
+    local innerStrStart = 0
+    local innerStrEnd = #str
+
+    if headFirstNewlineIdx ~= 0 then
+        if headFirstNewlineIdx > 1 then
+            local leadingSpaces = StringValue(
+                str:sub(1, headFirstNewlineIdx)
+            )
+            table.insert(listTexts, leadingSpaces)
+        end
+        table.insert(listTexts, StringValue("\n"))
+        innerStrStart = innerStrStart + 1
+    end
+
+    if tailLastNewlineIdx ~= 0 then
+        innerStrEnd = tailFirstNewlineIdx
+    end
+
+    if innerStrEnd > innerStrStart then
+        local innertStrText = StringValue(
+            str:sub(innerStrStart, innerStrEnd)
+        ) 
+        table.insert(listTexts, innertStrText)
+    end
+
+    if tailLastNewlineIdx ~= 0 and tailFirstNewlineIdx > headLastNewlineIdx then
+        list.insert(listTexts, StringValue("\n"))
+        if tailLastNewlineIdx < #str then
+            local numSpaces = #str - tailLastNewlineIdx - 1
+            local trailingSpaces = StringValue(
+                str:sub(
+                    tailLastNewlineIdx + 1,
+                    tailLastNewlineIdx + 1 + numSpaces
+                )
+            )
+            table.insert(listTexts, trailingSpaces)
+        end
+    end
+
+    return listTexts
+end
+
+function StoryState:CopyAndStartPatching()
+    local copy = StoryState(self.story)
+    copy._patch = StatePatch(self._patch)
+    copy.callStack = self.callStack:Clone()
+
+    for _, c in pairs(self._currentChoices) do
+        table.insert(copy._currentChoices, c)
+    end
+    for _, o in pairs(self.outputStream) do
+        table.insert(copy.outputStream, o)
+    end
+    copy:OutputStreamDirty()
+
+    if self:hasError() then
+        for _, e in pairs(self.currentErrors) do
+            table.insert(copy.currentErrors, e)
+        end
+    end
+    if self:hasWarning() then
+        for _, w in pairs(self.currentWarnings) do
+            table.insert(copy.currentWarnings, w)
+        end
+    end
+
+    copy.variablesState = self.variablesState
+    copy.variablesState.callStack = copy.callStack
+    copy.variablesState.patch = copy._patch;
+
+    for _, el in pairs(self.evaluationStack) do
+        table.insert(copy.evaluationStack, el)
+    end
+
+    if not self.divertedPointer:isNull() then
+        copy.divertedPointer = self.divertedPointer:Copy()
+    end
+
+    copy:setPreviousPointer(self:previousPointer():Copy())
+    copy.visitCounts = self.visitCounts
+    copy.turnIndices = self.turnIndices
+
+    copy.currentTurnIndex = self.currentTurnIndex
+    copy.storySeed = self.storySeed
+    copy.previousRandom = self.previousRandom
+
+    copy.didSafeExit = self.didSafeExit
+
+    return copy
+end
+
+function StoryState:RestoreAfterPatch()
+    self.variablesState.callStack = self.callStack;
+    self.variablesState.patch = self._patch;
+end
+
+function StoryState:ApplyAnyPatch()
+    if self._patch == nil then return end
+    self.variablesState:ApplyPatch()
+
+    for key, value in pairs(self._patch._visitCounts) do
+        self:ApplyCountChange(key, value, true)
+    end
+    for key, value in pairs(self._patch._turnIndices) do
+        self:ApplyCountChange(key, value, false)
+    end
+    self._patch = nil
+end
+
+function StoryState:ApplyCountChanges(container, newCount,isVisit)
+    local containerPathStr = Path:of(container):componentString()
+    if isVisit then
+        self._visitCounts[containerPathStr] = newCount
+    else
+        self._turnIndices[containerPathStr] = newCount
+    end
 end
 
 return StoryState

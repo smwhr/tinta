@@ -30,11 +30,19 @@ function Container:AddContent(contentOrList)
             self:AddContent(c)
         end
     else
-        table.insert(self.content, contentOrList)
-        if contentOrList.name then
-            self.namedContent[contentOrList.name] = contentOrList
-        end
-        contentOrList.parent = self
+        local contentObj = contentOrList
+        
+        table.insert(self.content, contentObj)
+
+        contentObj.parent = self
+
+        self:TryAddNamedContent(contentObj)
+    end
+end
+
+function Container:TryAddNamedContent(contentObj)
+    if contentObj.name ~= nil then
+        self:AddToNamedContentOnly(contentObj)
     end
 end
 
@@ -46,7 +54,7 @@ function Container:ContentAtPath(path, partialStart, partialEnd)
     local currentContainer = self
     local currentObj = self
 
-    for i = partialStart + 1, partialEnd do
+    for i = partialStart, partialEnd do
         local comp = path.components[i]
         if currentContainer == nil then
             result.approximate = true
@@ -105,14 +113,16 @@ end
 
 function Container:setNamedOnlyContent(value)
     local existingNamedOnly = self:namedOnlyContent()
+
     if existingNamedOnly ~= nil then
         for k,_ in ipairs(existingNamedOnly) do
             self.namedContent[k] = nil
         end
     end
+    
     if value == nil then return end
 
-    for _,val in ipairs(value) do
+    for _,val in pairs(value) do
         if val.name ~= nil then
             self:AddToNamedContentOnly(val)
         end

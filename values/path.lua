@@ -24,11 +24,11 @@ function PathComponent:isIndex()
 end
 
 function PathComponent:isParent()
-    return self.name == Path.parentId
+    return self.name == ParentID
 end
 
 function PathComponent:ToParent()
-    return PathComponent(Path.parentId)
+    return PathComponent(ParentID)
 end
 
 function PathComponent:__tostring()
@@ -36,13 +36,15 @@ function PathComponent:__tostring()
 end
 
 
+local ParentID = "^"
+
 ---@class Path
 local Path = classic:extend()
 
 
 function Path:new()
-    self.parentId = "^"
     self.components = {}
+    
     self.isRelative = false
 end
 
@@ -77,9 +79,9 @@ function Path:FromString(strComponents)
     local comps = lume.split(strComponents, ".")
     for _, comp in ipairs(comps) do
         if tonumber(comp) then
-            table.insert(newPath.components, tonumber(comp))
+            table.insert(newPath.components, PathComponent(tonumber(comp)))
         else
-            table.insert(newPath.components, comp)
+            table.insert(newPath.components, PathComponent(comp))
         end
     end
 
@@ -147,6 +149,7 @@ function Path:Resolve(obj, path)
         return nearestContainer:ContentAtPath(path)
     else
         local contentContainer = Path:rootAncestorOf(obj)
+
         if contentContainer == nil then
             error("Can't resolve path of object that doesn't belong to a container")
         end

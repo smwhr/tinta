@@ -1,7 +1,9 @@
 local classic = require('libs.classic')
 local lume = require('libs.lume')
+local inkutils = require('libs.inkutils')
 
 local VariablePointerValue = require('values.variable_pointer')
+local ListValue = require('values.list.list_value')
 
 ---@class VariableState
 local VariableState = classic:extend()
@@ -14,11 +16,36 @@ function VariableState:new(callStack, listDefsOrigin)
     self.dontSaveDefaultValues = true
 
     self.defaultGlobalVariables = nil
+    self.patch = nil
     
 end
 
 function VariableState.SnapshotDefaultGlobals()
     self.defaultGlobalVariables = lume.clone(self.globalVariables)
+end
+
+function VariableState:SetGlobal(variableName, value)
+    local oldValue = nil
+    if self.patch == nil then
+        oldValue = self.globalVariables[variableName]
+    end
+
+    if self.patch ~= nil then
+        oldValue = self.patch:TryGetGlobal(variableName, nil)
+        if not oldValue.exists then
+            oldValue = self.globalVariables[variableName]
+        else
+            oldValue = oldValue.result
+        end
+    end
+
+    ListValue:RetainListOriginsForAssignment(oldValue, value)
+
+    if self.patch ~= nil then
+        self.patch:SetGlobal(variableName, value)
+    else
+        self.globalVariables[variableName] = value
+    end
 end
 
 function VariableState:GetVariableWithName(name, contextIndex)
@@ -40,14 +67,21 @@ function VariableState:GlobalVariableExistsWithName(name)
 end
 
 function VariableState:GetRawVariableWithName(name, contextIndex)
-    local varValue = nil
-    if contextIndex == 0 or contextIndex == 1 then
-        varValue = self.globalVariables[name]
-        if varValue ~= nil then return varValue end
+
+    if contextIndex == 1 or contextIndex == 0 then
+        local variableValue = nil
+
+        if self.patch ~= nil then
+            variableValue = self.patch:TryGetGlobal(name, nil)
+            if variableValue.exists then return variableValue.result end
+        end
+
+        variableValue = self.globalVariables[name]
+        if variableValue ~= nil then return variableValue end
 
         if self.defaultGlobalVariables ~= nil then
-            varValue = self.defaultGlobalVariables[name]
-            if varValue ~= nil then return varValue end
+            variableValue = self.defaultGlobalVariables[name]
+            if variableValue ~= nil then return variableValue end
         end
     end
 
@@ -78,10 +112,23 @@ function VariableState:Assign(varAss, value)
         end
     else
         local existingPointer = nil
+        repeat
+            existingPointer = inkutils.asOrNil(
+                self:GetRawVariableWithName(name, contextIndex),
+                VariablePointerValue
+            )
+
+            if existingPointer ~= nil then
+                name = existingPointer.variableName
+                contextIndex = existingPointer.contextIndex
+                setGlobal = contextIndex == 1
+            end
+
+        until existingPointer == nil
     end
 
-    if contextIndex == 0 or contextIndex == 1 then
-        self.globalVariables[name] = value
+    if setGlobal then
+        self:SetGlobal(name, value)
     else
         self.callStack:SetTemporaryVariable(name, value, contextIndex)
     end
@@ -108,6 +155,19 @@ function VariableState:GetContextIndexOfVariableNamed(varName)
     end
 
     return self.callStack:currentElementIndex()
+end
+
+function VariableState:ApplyPatch()
+    for namedVarKey, namedVarValue in pairs(self.patch._globals) do
+        self.globalVariables[namedVarKey] = namedVarValue
+    end
+    self.patch = nil
+end
+
+-- Can't declare a 
+function VariableState:_(variableName, value)
+    --@TODO
+    error("Not implemented yet")
 end
 
 function VariableState:__tostring()

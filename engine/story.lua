@@ -10,6 +10,7 @@ local FloatValue = require('values.float')
 local BooleanValue = require('values.boolean')
 local Glue = require('values.glue')
 local Void = require('values.void')
+local Tag = require('values.tag')
 
 local ControlCommand = require('values.control_command')
 local ControlCommandType = require('constants.control_commands.types')
@@ -39,12 +40,23 @@ local Story = classic:extend()
 
 function Story:new(book)
   
-    self.mainContentContainer = JTokenToRuntimeObject(book.root)
+    self._mainContentContainer = JTokenToRuntimeObject(book.root)
     print("Successfull conversion")
     self.state = StoryState(self)
     print("Successfull state initialization")
 
     self.prevContainers = {}
+    self._temporaryEvaluationContainer = nil
+
+    self._stateSnapshotAtLastNewline = nil
+end
+
+function Story:mainContentContainer()
+    if self._temporaryEvaluationContainer then
+        return self._temporaryEvaluationContainer
+    else
+        return self._mainContentContainer
+    end
 end
 
 function Story:canContinue()
@@ -81,7 +93,9 @@ function Story:Continue()
     return self:currentText();
 end
 
+local iStep = 0
 function Story:ContinueInternal()
+    iStep = 0
     if not self:canContinue() then
         error("Can't continue - should check canContinue() before calling Continue")
     end
@@ -95,7 +109,31 @@ function Story:ContinueInternal()
     until not self:canContinue()
 
     if outputStreamEndsInNewline or not self:canContinue() then
-        self.state._previousText = nil
+
+        if self._stateSnapshotAtLastNewline ~= nil then
+            self:RestoreStateSnapshot()
+        end
+
+        if not self:canContinue() then
+            if self.state.callStack:canPopThread() then
+                error("Thread available to pop, threads should always be flat by the end of evaluation?")
+            end
+            if (    #self.state:generatedChoices() == 0
+                and not self.state.didSafeExit
+                and self._temporaryEvaluationContainer == nil
+            ) then
+                if self.state.callStack:CanPop(PushPopType.Tunnel) then
+                    error("unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?")
+                elseif self.state.callStack:CanPop(PushPopType.Function) then
+                    error("unexpectedly reached end of content. Do you need a '~ return'?")
+                elseif not self.state.callStack:canPop() then
+                    error("ran out of content. Do you need a '-> DONE' or '-> END'?")
+                else
+                    error("unexpectedly reached end of content for unknown reason. Please debug compiler!")
+                end
+            end
+        end
+        self.state.didSafeExit = false;
     end
 end
 
@@ -107,50 +145,72 @@ function Story:ContinueSingleStep()
     end
 
     if not self.state:inStringEvaluation() then
-        if self.state._previousText ~= nil then
+        
+        if self._stateSnapshotAtLastNewline ~= nil then
             local change = self:CalculateNewlineOutputStateChange(
-                self.state._previousText,
-                self.state:currentText()
+                self._stateSnapshotAtLastNewline:currentText(),
+                self.state:currentText(),
+                #self._stateSnapshotAtLastNewline:currentTags(),
+                #self.state:currentTags()
             )
             if change == "ExtendedBeyondNewline" then
-                self.state._previousText = nil
+                self:RestoreStateSnapshot()
                 return true
             elseif change == "NewlineRemoved" then
-                self.state._previousText = nil
+                self:DiscardSnapshot()
             end
         end
+
+        
         
         if self.state:outputStreamEndsInNewline() then
             if self:canContinue() then
-                self.state._previousText = self.state:currentText()
+                if self._stateSnapshotAtLastNewline == nil then
+                    self:StateSnapshot()
+                end
             else
-                self.state._previousText = nil
+                self:DiscardSnapshot()
             end
         end
     end
     return false
 end
 
-function Story:CalculateNewlineOutputStateChange(prevText, currText)
-    local newLineStillExists = (
+function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCount, currTagCount)
+    local newlineStillExists = (
             #currText >= #prevText
         and #prevText > 0
-        and currText:sub(#currText, #currText) == "\n"
+        and currText:sub(#prevText, #prevText) == "\n"
     )
 
-    if #prevText == #currText and newLineStillExists then return "NoChange" end
-    if not newLineStillExists then return "NewLineRemoved" end
+    if (
+          prevTagCount == currTagCount
+      and #prevText == #currText
+      and newlineStillExists
+    ) then
+      return "NoChange"
+    end
+
+    if not newlineStillExists then return "NewLineRemoved" end
+
+    if currTagCount > prevTagCount then
+        return "ExtendedBeyondNewline"
+    end
+    
 
     for i=#prevText, #currText do
         local c = currText:sub(i,i)
-        if c == " " or c == "\t" then return "ExtendedBeyondNewLine" end
+        if c ~= " " or c ~= "\t" then return "ExtendedBeyondNewline" end
     end
     return "NoChange"
 end
 
-local iStep = 0
 function Story:Step()
     iStep = iStep + 1
+    if iStep > 10 then 
+        error("Too many steps ("..iStep..")")
+        os.exit(1)
+    end
     print("==============Step", iStep, "=================")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
@@ -269,7 +329,7 @@ function Story:VisitChangedContainersDueToDivert()
 
         while prevAncestor do
             table.insert(self.prevContainers, prevAncestor)
-            prevAncester = inkutils.asOrNil(prevAncestor.parent, Container)
+            prevAncestor = inkutils.asOrNil(prevAncestor.parent, Container)
         end
     end
 
@@ -360,9 +420,11 @@ function Story:PerformLogicAndFlowControl(contentObj)
     if not contentObj then
         return false
     end
+
     -- Divert
     if contentObj:is(Divert) then
         local currentDivert = contentObj
+
         if currentDivert.isConditional then
             local conditionValue = self.state:PopEvaluationStack()
             if not self:IsTruthy(conditionValue) then
@@ -370,9 +432,10 @@ function Story:PerformLogicAndFlowControl(contentObj)
             end
         end
 
-        if currentDivert.hasVariableTarget then
+        if currentDivert:hasVariableTarget() then
             local varName = currentDivert.variableDivertName
             local varContents = self.state.variablesState:GetVariableWithName(varName)
+            
             if not varContents then
                 error("Tried to divert using a target from a variable that could not be found (" .. varName .. ")")
             end
@@ -395,14 +458,14 @@ function Story:PerformLogicAndFlowControl(contentObj)
         end
 
         if self.state.divertedPointer:isNull() and not currentDivert.isExternal then
-           error("Divert resolution failed", dump(currentDivert)) 
+           error("Divert resolution failed") 
         end
         
         return true
 
     -- Command Control
-    elseif contentObj:is(CommandControl) then
-        local evalCommand = contentObj;
+    elseif contentObj:is(ControlCommand) then
+        local evalCommand = contentObj.value;
         if     evalCommand == ControlCommandType.EvalStart then
             self.state.setInExpressionEvaluation(true)
 
@@ -463,10 +526,10 @@ function Story:PerformLogicAndFlowControl(contentObj)
         elseif evalCommand == ControlCommandType.EndTag then
             if self.state.inStringEvaluation() then
                 local contentStackForTag = {}
-                local outPutCountConsumed = 0
+                local outputCountConsumed = 0
                 for i = #self.state.outputStream, 1, -1 do
                     local obj = self.state.outputStream[i]
-                    outPutCountConsumed = outPutCountConsumed + 1
+                    outputCountConsumed = outputCountConsumed + 1
                     
                     if obj:is(ControlCommand) then
                         local command = obj
@@ -480,18 +543,30 @@ function Story:PerformLogicAndFlowControl(contentObj)
                         table.insert(contentStackForTag, obj)
                     end
                 end
+
+                self.state:PopFromOutputStream(outputCountConsumed)
+                local sb = {}
+                for _,strVal in pairs(contentStackForTag) do
+                    table.insert(sb, strVal.value)
+                end
+                local choiceTag = Tag(
+                    self.state:CleanOutputWhitespace(table.concat(sb))
+                )
+                self.state:PushEvaluationStack(choiceTag)
             else
                 self.state:PushToOutputStream(evalCommand)
             end
+
+
 
         elseif evalCommand == ControlCommandType.EndString then
             local contentStackForString = {}
             local contentToRetain = {}
             
-            local outPutCountConsumed = 0
+            local outputCountConsumed = 0
             for i = #self.state.outputStream, 1, -1 do
                 local obj = self.state.outputStream[i]
-                outPutCountConsumed = outPutCountConsumed + 1
+                outputCountConsumed = outputCountConsumed + 1
                 
                 if obj:is(ControlCommand) and obj.value == ControlCommandType.BeginString then
                     -- Do nothing
@@ -504,7 +579,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 end
             end
 
-            self.state:PopFromOutputStream(outPutCountConsumed)
+            self.state:PopFromOutputStream(outputCountConsumed)
 
             for _, rescuedTag in ipairs(contentToRetain) do
                 self.state:PushToOutputStream(rescuedTag)
@@ -528,6 +603,41 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
         elseif evalCommand == ControlCommandType.TurnsSince
         or     evalCommand == ControlCommandType.ReadCount then
+            local target = self.state:PopEvaluationStack()
+
+            if not target:is(DivertTarget) then
+                local extraNote = "."
+                if target:is(IntValue) then
+                    extraNote = ". Did you accidentally pass a read count ('knot_name') instead of a target ('-> knot_name')?";
+                end
+                error(
+                    "TURNS_SINCE / READ_COUNT expected a divert target (knot, stitch, label name), but saw " .. tostring(target) .. extraNote
+                )
+            end
+            
+            local divertTarget = target
+            local container = inkutils.asOrNil(
+                self:ContentAtPath(divertTarget.targetPath):correctObj(),
+                Container
+            )
+            local eitherCount = -1
+            if container ~= nil then
+                if evalCommand.value == ControlCommandType.TurnsSince then
+                    eitherCount = self.state:TurnsSinceForContainer(container)
+                else
+                    eitherCount = self.state:VisitCountForContainer(container)
+                end
+            else
+                if evalCommand.value == ControlCommandType.TurnsSince then
+                    eitherCount = -1
+                else
+                    eitherCount = 0
+                end
+                
+            end
+
+            self.state:PushEvaluationStack(IntValue(eitherCount))
+
         elseif evalCommand == ControlCommandType.Random then
             local maxInt = self.state:PopEvaluationStack()
             local minInt = self.state:PopEvaluationStack()
@@ -571,7 +681,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
         elseif evalCommand == ControlCommandType.StartThread then
             -- Done in main step function
         elseif evalCommand == ControlCommandType.Done then
-            if self.state.callStack:canPopThread()then
+            if self.state.callStack:canPopThread() then
                 self.callStack:PopThread()
             else
                 self.state.didSafeExit = true
@@ -647,12 +757,12 @@ function Story:PointerAtPath(path)
 
     if path:lastComponent():isIndex() then
         pathLengthToUse = pathLengthToUse - 1
-        result = this.mainContentContainer:ContentAtPath(
+        result = this:mainContentContainer():ContentAtPath(
             path, nil, pathLengthToUse
         )
         p.container = result.container
     else
-        result = this.mainContentContainer.ContentAtPath(path);
+        result = this:mainContentContainer().ContentAtPath(path);
         p.container = result.container;
     end
 
@@ -767,6 +877,31 @@ function Story:TryFollowDefaultInvisibleChoice()
     return true
 end
 
+-- SnapshotManagement
+
+function Story:StateSnapshot()
+    self._stateSnapshotAtLastNewline = self.state
+    self.state = self.state:CopyAndStartPatching()
+end
+
+function Story:RestoreStateSnapshot()
+    self._stateSnapshotAtLastNewline:RestoreAfterPatch()
+    self.state = self._stateSnapshotAtLastNewline
+    self._stateSnapshotAtLastNewline = nil
+
+    if not self.asyncSaving then
+        self.state:ApplyAnyPatch()
+    end
+end
+
+function Story:DiscardSnapshot()
+    if not self.asyncSaving then
+        self.state:ApplyAnyPatch()
+    end
+
+    self._stateSnapshotAtLastNewline = nil
+end
+
 
 
 function JTokenToRuntimeObject(token)
@@ -841,7 +976,7 @@ function JTokenToRuntimeObject(token)
         end
         if currentDivert then
             local target = propValue
-            if obj["var"] == propValue then
+            if obj["var"] then
                 currentDivert.variableDivertName = target
             else
                 currentDivert:setTargetPathString(target)
@@ -876,7 +1011,7 @@ function JTokenToRuntimeObject(token)
         end
 
         if obj["#"] then
-            error("Tag not implemented yet")
+            return Tag(obj["#"])
         end
 
         if obj["list"] then
@@ -902,7 +1037,7 @@ function JArrayToContainer(jArray)
     container:AddContent(JArrayToRuntimeObjList(jArray, true))
 
     local terminatingObj = jArray[#jArray]
-    if not (terminatingObj == "TERM") then
+    if terminatingObj ~= "TERM" then
         local namedOnlyContent = {}
         for key, value in pairs(terminatingObj) do
             if key == "#f" then

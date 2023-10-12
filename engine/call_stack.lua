@@ -1,6 +1,7 @@
 local classic = require('libs.classic')
 local lume = require('libs.lume')
 
+local Path = require('values.path')
 local PushPopType = require('constants.push_pop_type')
 
 local Pointer = require('engine.pointer')
@@ -12,6 +13,16 @@ function CallStackThread:new()
     self.callStack = {}
     self.threadIndex = 0
     self.previousPointer = Pointer:Null()
+end
+
+function CallStackThread:Copy()
+    local copy = CallStackThread()
+    copy.threadIndex = self.threadIndex
+    for _,e in pairs(self.callStack) do
+        table.insert(copy.callStack, e:Copy())
+    end
+    copy.previousPointer = self.previousPointer:Copy()
+    return copy
 end
 
 function CallStackThread:__tostring()
@@ -50,10 +61,26 @@ end
 local CallStack = classic:extend()
 
 function CallStack:new(story)
-    self.startOfRoot = Pointer:StartOf(story.mainContentContainer)
     self.threadCounter = 0
-    self.currentThread = nil
-    self:Reset()
+    if story then
+        self.startOfRoot = Pointer:StartOf(Path:rootAncestorOf(story))
+        self:Reset()
+    else
+        self.startOfRoot = Pointer:Null()
+    end
+end
+
+function CallStack:Clone()
+    local toCopy = CallStack()
+    toCopy.threads = {}
+
+    for _, otherThread in pairs(self.threads) do
+        table.insert(toCopy.threads, otherThread:Copy())
+    end
+    toCopy.threadCounter = self.threadCounter
+    toCopy.startOfRoot = self.startOfRoot
+
+    return toCopy
 end
 
 
@@ -71,15 +98,16 @@ function CallStack:Reset()
     self:setCurrentThread(newThread)
 end
 
+
 function CallStack:PushThread()
-    local newThread = self.currentThread:Copy()
+    local newThread = self:currentThread():Copy()
     self.threadCounter = self.threadCounter + 1
     newThread.threadIndex = self.threadCounter
     table.insert(self.threads, newThread)
 end
 
 function CallStack:ForkThread()
-    local forkedThread = self.currentThread:Copy()
+    local forkedThread = self:currentThread():Copy()
     self.threadCounter = self.threadCounter + 1
     forkedThread.threadIndex = self.threadCounter
     return forkedThread
@@ -183,7 +211,7 @@ end
 -- utils and accessors
 
 function CallStack:callStack()
-    return self.currentThread.callStack
+    return self:currentThread().callStack
 end
 
 function CallStack:elements()
@@ -204,10 +232,13 @@ function CallStack:currentElementIndex()
     return #(self:callStack())
 end
 
+function CallStack:currentThread()
+    return self.threads[#self.threads]
+end
+
 function CallStack:setCurrentThread(thread)
     self.threads = {}
     table.insert(self.threads, thread)
-    self.currentThread = thread
     self.threadCounter = #thread
 end
 

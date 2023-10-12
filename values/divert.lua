@@ -1,4 +1,6 @@
 local classic = require('libs.classic')
+local inkutils = require('libs.inkutils')
+
 local BaseValue = require('values.base')
 
 local PushPopType = require('constants.push_pop_type')
@@ -16,11 +18,16 @@ function Divert:new(pushesToStack, stackPushType, isExternal)
 
     self.isConditional = false
     self.externalArgs = {}
-
+    
+    self.variableDivertName = nil
 
     self._targetPath = nil
     self._targetPointer = Pointer:Null()
 
+end
+
+function Divert:hasVariableTarget()
+    return self.variableDivertName ~= nil
 end
 
 function Divert:targetPath()
@@ -50,20 +57,11 @@ function Divert:targetPointer()
     if self._targetPointer:isNull() then
         local targetObj = Path:Resolve(self, self._targetPath).obj
 
-        if self._targetPath:lastComponent().isIndex then
-            if targetOb.parent:is(Container) then
-                self._targetPointer.container = targetObj.parent
-            else
-                self._targetPointer.container = nil
-            end
+        if self._targetPath:lastComponent():isIndex() then
+            self._targetPointer.container = inkutils.asOrNil(targetObj.parent, Container)
             self._targetPointer.index = self._targetPath:lastComponent().index;
         else
-            if targetObj:is(Container) then
-                self._targetPointer = Pointer:StartOf(targetObj)
-            else
-                self._targetPointer = Pointer:StartOf(nil)
-            end
-            
+            self._targetPointer = Pointer:StartOf(inkutils.asOrNil(targetObj,Container))
         end
     end
 
