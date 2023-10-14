@@ -115,9 +115,18 @@ end
 
 function CallStack:PopThread()
     if self:canPopThread() then
+        table.remove(self.threads)
+    else
         error("Can't pop thread")
     end
-    table.remove(self.threads)
+end
+
+function CallStack:canPopThread()
+    return #self.threads > 1 and not self:elementIsEvaluateFromGame()
+end
+
+function CallStack:elementIsEvaluateFromGame()
+    return self:currentElement().type == PushPopType.FunctionEvaluationFromGame
 end
 
 function CallStack:Push(type, externalEvaluationStackHeight, outputStreamLengthWithPushed)
@@ -153,9 +162,11 @@ function CallStack:Pop(type)
 end
 
 function CallStack:GetTemporaryVariableWithName(name, contextIndex)
-    contextIndex = contextIndex or #(self:callStack())
-
-    local contextElement = self:callStack()[contextIndex]
+    if contextIndex == 0 then
+        contextIndex = #(self:callStack()) + 1
+    end
+        
+    local contextElement = self:callStack()[contextIndex -1]
 
     local varValue = contextElement.temporaryVariables[name]
 
@@ -244,14 +255,6 @@ end
 
 function CallStack:canPop()
     return #(self:callStack()) > 1
-end
-
-function CallStack:canPopThread()
-    return #self.threads > 1 and not self:elementIsEvaluateFromGame()
-end
-
-function CallStack:elementIsEvaluateFromGame()
-    return self:currentElement().type == PushPopType.FunctionEvaluationFromGame
 end
 
 

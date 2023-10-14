@@ -51,6 +51,7 @@ function Container:ContentAtPath(path, partialStart, partialEnd)
     partialEnd = partialEnd or path:length()
     local result = SearchResult()
     result.approximate = false
+
     local currentContainer = self
     local currentObj = self
 
@@ -69,7 +70,7 @@ function Container:ContentAtPath(path, partialStart, partialEnd)
         end
 
         currentObj = foundObj
-        currentContainer = inkutils.asOrNil(currentObj, Container)
+        currentContainer = inkutils.asOrNil(foundObj, Container)
         
     end
     result.obj = currentObj
@@ -78,8 +79,8 @@ end
 
 function Container:ContentWithPathComponent(component)
     if component:isIndex() then
-        if component.index >= 1 or component.index <= #self.content then
-            return self.content[component.index]
+        if component.index >= 0 or component.index < #self.content then
+            return self.content[component.index + 1]
         else
             return nil
         end
@@ -134,14 +135,14 @@ function Container:AddToNamedContentOnly(namedContentObj)
     self.namedContent[namedContentObj.name] = namedContentObj
 end
 
-function Container:setCountFlags(flag)
-    if flag & CountFlags.Visits > 0 then
+function Container:setCountFlags(value)
+    if value & CountFlags.Visits > 0 then
         self.visitsShouldBeCounted = true
     end
-    if flag & CountFlags.Turns > 0 then
+    if value & CountFlags.Turns > 0 then
         self.turnIndexShouldBeCounted = true
     end
-    if flag & CountFlags.CountStartOnly > 0 then
+    if value & CountFlags.CountStartOnly > 0 then
         self.countingAtStartOnly = true
     end
 end

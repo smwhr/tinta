@@ -11,6 +11,10 @@ function DivertTarget:new(targetPath)
     self.valueType = "DivertTarget"
 end
 
+function DivertTarget:targetPath()
+    return self.value
+end
+
 function DivertTarget:__tostring()
     return "DivertTarget"
 end

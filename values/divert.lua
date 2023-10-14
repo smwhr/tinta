@@ -31,7 +31,7 @@ function Divert:hasVariableTarget()
 end
 
 function Divert:targetPath()
-    if self._targetPath == nil and self._targetPath.isRelative then
+    if self._targetPath ~= nil and self._targetPath.isRelative then
         local targetObj = self:targetPointer():Resolve()
         if targetObj then
             self._targetPath = Path:of(targetObj)
@@ -59,7 +59,7 @@ function Divert:targetPointer()
 
         if self._targetPath:lastComponent():isIndex() then
             self._targetPointer.container = inkutils.asOrNil(targetObj.parent, Container)
-            self._targetPointer.index = self._targetPath:lastComponent().index;
+            self._targetPointer.index = self._targetPath:lastComponent().index + 1;
         else
             self._targetPointer = Pointer:StartOf(inkutils.asOrNil(targetObj,Container))
         end

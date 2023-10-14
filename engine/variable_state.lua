@@ -20,7 +20,7 @@ function VariableState:new(callStack, listDefsOrigin)
     
 end
 
-function VariableState.SnapshotDefaultGlobals()
+function VariableState:SnapshotDefaultGlobals()
     self.defaultGlobalVariables = lume.clone(self.globalVariables)
 end
 

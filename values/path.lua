@@ -5,11 +5,12 @@ local inkutils = require('libs.inkutils')
 local BaseValue = require('values.base')
 local Container = require('values.container')
 
+local ParentID = "^"
 ---@class PathComponent
 local PathComponent = classic:extend()
 
 function PathComponent:new(indexOrName)
-    self.index = 0
+    self.index = -1
     self.name = nil
 
     if type(indexOrName) == "string" then
@@ -20,7 +21,7 @@ function PathComponent:new(indexOrName)
 end
 
 function PathComponent:isIndex()
-    return self.index >= 1
+    return self.index >= 0
 end
 
 function PathComponent:isParent()
@@ -31,12 +32,20 @@ function PathComponent:ToParent()
     return PathComponent(ParentID)
 end
 
+function PathComponent:asString()
+    if self:isIndex() then
+        return tostring(self.index)
+    else
+        return self.name;
+    end
+end
+
 function PathComponent:__tostring()
     return "PathComponent"
 end
 
 
-local ParentID = "^"
+
 
 ---@class Path
 local Path = classic:extend()
@@ -58,7 +67,6 @@ end
 
 function Path:tail()
     if self:length() >= 2 then
-        error("Can't get tail of an empty path")
         local comps = lume.slice(self.components, 2)
         return Path:fromPathComponents(comps)
     else
@@ -72,7 +80,7 @@ function Path:FromString(strComponents)
     local newPath = Path()
 
     if string.sub(strComponents, 1, 1) == "." then
-        self.isRelative = true
+        newPath.isRelative = true
         strComponents = string.sub(strComponents, 2)
     end 
 
@@ -104,15 +112,16 @@ function Path:of(element)
             local child = element
             local container = inkutils.asOrNil(child.parent, Container)
             while container ~= nil do
-                if container.name then
-                    table.insert(comps, 1, PathComponent(container.name))
+                if child.name then
+                    table.insert(comps, 1, PathComponent(child.name))
                 else
-                    local childIndex = lume.find(container.content, child)
+                    local childIndex = lume.find(container.content, child) -1 
                     table.insert(comps, 1, PathComponent(childIndex))
                 end
                 child = container
                 container = inkutils.asOrNil(container.parent, Container)
             end
+
             element.path = Path:fromPathComponents(comps)
         end
     end
@@ -133,7 +142,9 @@ function Path:Resolve(obj, path)
     end
     if path.isRelative then
         local nearestContainer = inkutils.asOrNil(obj, Container)
+        
         if nearestContainer == nil then
+            
             if obj.parent == nil then
                 error("Can't resolve relative path because we don't have a parent")
             end
@@ -158,14 +169,13 @@ function Path:Resolve(obj, path)
 end
 
 function Path:componentString()
-    local componentString = ""
-    componentString = lume.reduce(self.components, function(acc, comp)
-        if type(comp) == "string" then
-            return acc .. "." .. comp
-        else
-            return acc .. "." .. tostring(comp)
-        end
-    end)
+    local sb = {}
+
+    for _,comp in pairs(self.components) do
+        table.insert(sb, comp:asString())
+    end
+
+    local componentString = table.concat(sb, ".")
     if self.isRelative then
         return "." .. componentString
     else

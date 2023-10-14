@@ -95,7 +95,6 @@ end
 
 local iStep = 0
 function Story:ContinueInternal()
-    iStep = 0
     if not self:canContinue() then
         error("Can't continue - should check canContinue() before calling Continue")
     end
@@ -207,9 +206,9 @@ end
 
 function Story:Step()
     iStep = iStep + 1
-    if iStep > 10 then 
+    if iStep > 100 then 
         error("Too many steps ("..iStep..")")
-        os.exit(1)
+        -- os.exit(1)
     end
     print("==============Step", iStep, "=================")
     local shouldAddToStream = true
@@ -222,21 +221,28 @@ function Story:Step()
     -- Container
     containerToEnter = inkutils.asOrNil(pointer:Resolve(), Container)
 
-    while containerToEnter and containerToEnter:is(Container) do
+    while containerToEnter do
         self:VisitContainer(containerToEnter, true)
         if #containerToEnter.content == 0 then break end
 
-        pointer = Pointer:StartOf(containerToEnter):Copy()
+        pointer = Pointer:StartOf(containerToEnter)
+
         containerToEnter = inkutils.asOrNil(pointer:Resolve(), Container)
     end
 
     self.state:setCurrentPointer(pointer:Copy())
 
     local currentContentObj = pointer:Resolve()
+
     local isLogicOrFlowControl = self:PerformLogicAndFlowControl(currentContentObj)
 
+    
     if self.state:currentPointer():isNull() then
         return
+    end
+
+    if isLogicOrFlowControl then
+        shouldAddToStream = false
     end
 
     if currentContentObj and currentContentObj:is(ChoicePoint) then
@@ -265,7 +271,7 @@ function Story:Step()
             end
         end
         if self.state:inExpressionEvaluation() then
-            self.state:PushToOutputStream(currentContentObj)
+            self.state:PushEvaluationStack(currentContentObj)
         else
             self.state:PushToOutputStream(currentContentObj)
         end
@@ -355,6 +361,8 @@ function Story:VisitChangedContainersDueToDivert()
 
         if not enteringAtStart then allChildrenEnteredAtStart = false end
 
+        self:VisitContainer(currentContainerAncestor, enteringAtStart)
+
         currentChildOfContainer = currentContainerAncestor
         currentContainerAncestor = inkutils.asOrNil(currentContainerAncestor.parent)
     end
@@ -364,12 +372,13 @@ end
 function Story:IncrementContentPointer()
     local successfulIncrement = true
     local pointer = self.state.callStack:currentElement().currentPointer:Copy()
+    
     pointer.index = pointer.index + 1
 
     while pointer.index > #pointer.container.content do
         successfulIncrement = false
         
-        local nextAncestor = inkutils.asOrNil(pointer.container.parent, Containter)
+        local nextAncestor = inkutils.asOrNil(pointer.container.parent, Container)
         if nextAncestor == nil then break end
 
         local indexInAncestor = lume.find(nextAncestor.content, pointer.container)
@@ -383,7 +392,7 @@ function Story:IncrementContentPointer()
     
     if not successfulIncrement then pointer = Pointer:Null() end
     
-    self.state:setCurrentPointer(pointer:Copy())
+    self.state:setCurrentPointer(pointer)
     
     return successfulIncrement
 end
@@ -444,7 +453,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 error("Tried to divert to a target from a variable, but the variable (" .. varName .. ") didn't contain a divert target")
             end
 
-            self.state.divertedPointer = self:PointerAtPath(varContents.targetPath)
+            self.state.divertedPointer = self:PointerAtPath(varContents:targetPath())
         else
             self.state.divertedPointer = currentDivert:targetPointer():Copy()
         end
@@ -465,14 +474,15 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
     -- Command Control
     elseif contentObj:is(ControlCommand) then
-        local evalCommand = contentObj.value;
-        if     evalCommand == ControlCommandType.EvalStart then
-            self.state.setInExpressionEvaluation(true)
+        local evalCommand = contentObj;
 
-        elseif evalCommand == ControlCommandType.EvalEnd then
-            self.state.setInExpressionEvaluation(false)
+        if     evalCommand.value == ControlCommandType.EvalStart then
+            self.state:setInExpressionEvaluation(true)
 
-        elseif evalCommand == ControlCommandType.EvalOutput then
+        elseif evalCommand.value == ControlCommandType.EvalEnd then
+            self.state:setInExpressionEvaluation(false)
+
+        elseif evalCommand.value == ControlCommandType.EvalOutput then
             if #self.state.evaluationStack > 0 then
                 local output = self.state:PopEvaluationStack()
                 if not output:is(Void) then
@@ -480,16 +490,16 @@ function Story:PerformLogicAndFlowControl(contentObj)
                     self.state:PushToOutputStream(text)
                 end
             end
-        elseif evalCommand == ControlCommandType.NoOp then
+        elseif evalCommand.value == ControlCommandType.NoOp then
             -- Do nothing
-        elseif evalCommand == ControlCommandType.Duplicate then
+        elseif evalCommand.value == ControlCommandType.Duplicate then
             self.state:PushEvaluationStack(self.state:PeekEvaluationStack())
 
-        elseif evalCommand == ControlCommandType.PopEvaluatedValue then
+        elseif evalCommand.value == ControlCommandType.PopEvaluatedValue then
             self.state:PopEvaluationStack()
 
-        elseif evalCommand == ControlCommandType.PopFunction
-        or     evalCommand == ControlCommandType.PopTunnel then
+        elseif evalCommand.value == ControlCommandType.PopFunction
+        or     evalCommand.value == ControlCommandType.PopTunnel then
             local popType = nil
             if evalCommand.value == ControlCommandType.PopFunction then
                 popType = PushPopType.Function
@@ -516,15 +526,15 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 self.state:PopCallStack()
             end
 
-        elseif evalCommand == ControlCommandType.BeginString then
+        elseif evalCommand.value == ControlCommandType.BeginString then
             self.state:PushToOutputStream(evalCommand)
-            self.state.inExpressionEvaluation = false
+            self.state:setInExpressionEvaluation(false)
 
-        elseif evalCommand == ControlCommandType.BeginTag then
+        elseif evalCommand.value == ControlCommandType.BeginTag then
             self.state:PushToOutputStream(evalCommand)
 
-        elseif evalCommand == ControlCommandType.EndTag then
-            if self.state.inStringEvaluation() then
+        elseif evalCommand.value == ControlCommandType.EndTag then
+            if self.state:inStringEvaluation() then
                 local contentStackForTag = {}
                 local outputCountConsumed = 0
                 for i = #self.state.outputStream, 1, -1 do
@@ -559,7 +569,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
 
 
-        elseif evalCommand == ControlCommandType.EndString then
+        elseif evalCommand.value == ControlCommandType.EndString then
             local contentStackForString = {}
             local contentToRetain = {}
             
@@ -591,18 +601,19 @@ function Story:PerformLogicAndFlowControl(contentObj)
             for _, s in ipairs(contentStackForString) do
                 table.insert(sb, tostring(s.value))
             end
-            self.state.inExpressionEvaluation = true
+            
+            self.state:setInExpressionEvaluation(true)
             self.state:PushEvaluationStack(StringValue(table.concat(sb)))
 
-        elseif evalCommand == ControlCommandType.ChoiceCount then
+        elseif evalCommand.value == ControlCommandType.ChoiceCount then
             local choiceCount = #self.state:generatedChoices()
             self.state:PushEvaluationStack(IntValue(choiceCount))
 
-        elseif evalCommand == ControlCommandType.Turns then
+        elseif evalCommand.value == ControlCommandType.Turns then
             self.state:PushEvaluationStack(IntValue(self.state.currentTurnIndex))
 
-        elseif evalCommand == ControlCommandType.TurnsSince
-        or     evalCommand == ControlCommandType.ReadCount then
+        elseif evalCommand.value == ControlCommandType.TurnsSince
+        or     evalCommand.value == ControlCommandType.ReadCount then
             local target = self.state:PopEvaluationStack()
 
             if not target:is(DivertTarget) then
@@ -638,7 +649,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
             self.state:PushEvaluationStack(IntValue(eitherCount))
 
-        elseif evalCommand == ControlCommandType.Random then
+        elseif evalCommand.value == ControlCommandType.Random then
             local maxInt = self.state:PopEvaluationStack()
             local minInt = self.state:PopEvaluationStack()
 
@@ -661,7 +672,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
             self.state.previousRandom = nextRandom
             
 
-        elseif evalCommand == ControlCommandType.SeedRandom then
+        elseif evalCommand.value == ControlCommandType.SeedRandom then
             local seed = self.state:PopEvaluationStack()
             if not seed:is(IntValue) then
                 error("Invalid value passed to SEED_RANDOM")
@@ -670,17 +681,17 @@ function Story:PerformLogicAndFlowControl(contentObj)
             self.state.storySeed = seed.value
             self.state:PushEvaluationStack(Void())
 
-        elseif evalCommand == ControlCommandType.VisitIndex then
+        elseif evalCommand.value == ControlCommandType.VisitIndex then
             local count = self.state:VisitCountForContainer(self.state:currentPointer().container)
             self.state:PushEvaluationStack(IntValue(count))
 
-        elseif evalCommand == ControlCommandType.SequenceShuffleIndex then
+        elseif evalCommand.value == ControlCommandType.SequenceShuffleIndex then
             local shuffleIndex = self:NextSequenceShuffleIndex()
             self.state:PushEvaluationStack(IntValue(shuffleIndex))
 
-        elseif evalCommand == ControlCommandType.StartThread then
+        elseif evalCommand.value == ControlCommandType.StartThread then
             -- Done in main step function
-        elseif evalCommand == ControlCommandType.Done then
+        elseif evalCommand.value == ControlCommandType.Done then
             if self.state.callStack:canPopThread() then
                 self.callStack:PopThread()
             else
@@ -688,16 +699,16 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 self.state:setCurrentPointer(Pointer:Null())
             end
 
-        elseif evalCommand == ControlCommandType.End then
+        elseif evalCommand.value == ControlCommandType.End then
             self.state:ForceEnd()
 
-        elseif evalCommand == ControlCommandType.ListFromInt then
+        elseif evalCommand.value == ControlCommandType.ListFromInt then
             --@TODO: Implement
             error("ListFromInt not implemented yet")
-        elseif evalCommand == ControlCommandType.ListRange then
+        elseif evalCommand.value == ControlCommandType.ListRange then
             --@TODO: Implement
             error("ListRange not implemented yet")
-        elseif evalCommand == ControlCommandType.ListRandom then
+        elseif evalCommand.value == ControlCommandType.ListRandom then
             --@TODO: Implement
             error("ListRandom not implemented yet")
         else
@@ -757,13 +768,13 @@ function Story:PointerAtPath(path)
 
     if path:lastComponent():isIndex() then
         pathLengthToUse = pathLengthToUse - 1
-        result = this:mainContentContainer():ContentAtPath(
+        result = self:mainContentContainer():ContentAtPath(
             path, nil, pathLengthToUse
         )
-        p.container = result.container
+        p.container = result:container()
     else
-        result = this:mainContentContainer().ContentAtPath(path);
-        p.container = result.container;
+        result = self:mainContentContainer():ContentAtPath(path);
+        p.container = result:container();
     end
 
     return p
@@ -808,7 +819,7 @@ end
 function Story:PopChoiceStringAndTags(tags)
     local choiceOnlyStrVal = self.state:PopEvaluationStack()
     while (
-             #(self.evaluationStack) > 0 
+             #(self.state.evaluationStack) > 0 
         and  self.state:PeekEvaluationStack():is(Tag)
     ) do
         local tag = self.state:PopEvaluationStack()
@@ -827,30 +838,31 @@ function Story:ProcessChoice(choicePoint)
     end
 
     local startText = ""
-    local choiceTextOnly = ""
+    local choiceOnlyText = ""
     local tags = {}
 
     if choicePoint.hasChoiceOnlyContent then
-        choiceTextOnly = self:PopChoiceStringAndTags(tags) or ""
+        choiceOnlyText = self:PopChoiceStringAndTags(tags) or ""
     end
     if choicePoint.hasStartContent then
-        startText = self.PopChoiceStringAndTags(tags) or ""
+        startText = self:PopChoiceStringAndTags(tags) or ""
     end
 
     if choicePoint.onceOnly then
-        local visitCount = self.state:VisitCountForContainer(choice)
+        local choiceTarget = choicePoint:choiceTarget()
+        local visitCount = self.state:VisitCountForContainer(choiceTarget)
         if visitCount > 0 then
             showChoice = false
         end
     end
 
-    if not showChoice then return ni end
+    if not showChoice then return nil end
 
     local choice = Choice()
-    choice.targetPath = choicePoint.pathOnChoice
+    choice.targetPath = choicePoint:pathOnChoice()
     choice.sourcePath = Path:of(choicePoint):componentString()
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
-    choice.threadAtGeneration = self.state.callStack.ForkThread();
+    choice.threadAtGeneration = self.state.callStack:ForkThread();
     choice.tags = lume.reverse(tags)
     choice.text = lume.trim(startText .. choiceOnlyText)
 
@@ -991,23 +1003,28 @@ function JTokenToRuntimeObject(token)
 
         if obj["*"] then
             local choice = ChoicePoint()
-            choice.pathStringOnChoice = obj["*"]
+            choice._pathOnChoice = Path:FromString(obj["*"])
 
             if obj["flg"] then 
-                choice.flags = tonumber(obj["flg"])
+                choice:setFlags(tonumber(obj["flg"]))
             end
-
             return choice
         end
 
         if obj["VAR?"] then
-            error("Variable reference not implemented yet")
+            return VariableReference(obj["VAR?"]);
         end
+        if obj["CNT?"] then
+            local readCountVarRef = VariableReference()
+            readCountVarRef.pathStringForCount = obj["CNT?"]
+            return readCountVarRef
+        end
+
         if obj["VAR="] then
             return VariableAssignment(obj["VAR="], not obj["re"], true)
         end
         if obj["temp="] then
-            return VariableAssignment(obj["VAR="], not obj["re"], false)
+            return VariableAssignment(obj["temp="], not obj["re"], false)
         end
 
         if obj["#"] then
@@ -1034,7 +1051,9 @@ end
 function JArrayToContainer(jArray)
     local container = Container()
 
-    container:AddContent(JArrayToRuntimeObjList(jArray, true))
+    if(#jArray > 1) then
+        container:AddContent(JArrayToRuntimeObjList(jArray, true))
+    end
 
     local terminatingObj = jArray[#jArray]
     if terminatingObj ~= "TERM" then
@@ -1060,7 +1079,7 @@ end
 function JArrayToRuntimeObjList(jArray, skipLast)
     skipLast = skipLast or false
     local ObjList = {}
-    for i, jTok in ipairs(jArray) do
+    for i, jTok in pairs(jArray) do
         if not (i == #jArray and skipLast) then
             local runtimeObj = JTokenToRuntimeObject(jTok)
             if runtimeObj then

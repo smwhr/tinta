@@ -1,6 +1,7 @@
 local classic = require('libs.classic')
 local lume = require('libs.lume')
 
+local Path = require('values.path')
 
 ---@class VariableReference
 local VariableReference = classic:extend()
@@ -10,9 +11,15 @@ function VariableReference:new(name)
     self.pathForCount = nil
 end
 
+
+function VariableReference:setPathStringForCount(value)
+    if value == nil then self.pathForCount = nil end
+    self.pathForCount = Path(value);
+end
+
 function VariableReference:containerForCount()
     if self.pathForCount == nil then return nil end
-    return Path:Resolve(self, self.pathForCount).container
+    return Path:Resolve(self, self.pathForCount):container()
 end
 
 return VariableReference

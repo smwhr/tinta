@@ -1,5 +1,6 @@
 local classic = require('libs.classic')
 local lume = require('libs.lume')
+local inkutils = require('libs.inkutils')
 
 local PushPopType = require('constants.push_pop_type')
 
@@ -8,10 +9,11 @@ local VariableState = require('engine.variable_state')
 local Pointer = require('engine.pointer')
 local StringValue = require('values.string')
 local Glue = require('values.glue')
-local CommandControl = require('values.control_command')
+local Path = require('values.path')
+local ControlCommand = require('values.control_command')
 local ListValue = require('values.list.list_value')
 
-local CommandControlType = require('constants.control_commands.types')
+local ControlCommandType = require('constants.control_commands.types')
 
 
 ---@class StatePatch
@@ -124,7 +126,7 @@ function StoryState:currentText()
             if(outputObj:is(ControlCommand)) then
                 if outputObj.value == ControlCommandType.BeginTag then
                     inTag = true
-                elseif outputObj.commandType == ControlCommandType.EndTag then
+                elseif outputObj.value == ControlCommandType.EndTag then
                     inTag = false
                 end
             end
@@ -143,14 +145,14 @@ function StoryState:currentTags()
         for _, outputObj in pairs(self.outputStream) do
             if outputObj:is(ControlCommand) then
                 local controlCommand = outputObj
-                if controlCommand.value == CommandControlType.BeginTag then
+                if controlCommand.value == ControlCommandType.BeginTag then
                     if inTag and #sb > 0 then
                         local txt = self:CleanOutputWhitespace(table.concat(sb))
                         table.insert(self._currentTags, txt)
                         sb = {}
                     end
                     inTag = true
-                elseif controlCommand.value == CommandControlType.EndTag then
+                elseif controlCommand.value == ControlCommandType.EndTag then
                     if #sb > 0 then
                         local txt = self:CleanOutputWhitespace(table.concat(sb))
                         table.insert(self._currentTags, txt)
@@ -198,11 +200,11 @@ function StoryState:OutputStreamDirty()
 end
 
 function StoryState:PushToOutputStream(obj)
-    if obj and obj:is(StringValue) then
-        local text = obj
-        local listText = TrySplittingHeadTailWhitespace(obj)
+    local text = inkutils.asOrNil(obj, StringValue)
+    if text then
+        local listText = TrySplittingHeadTailWhitespace(text)
         if listText ~= nil then
-            for i, textObj in ipairs(listText) do
+            for _, textObj in pairs(listText) do
                 self:PushToOutputStreamIndividual(textObj)
             end
             self:OutputStreamDirty()
@@ -239,7 +241,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
                 glueTrimIndex = i;
                 break
             end
-            if o:is(CommandControl) and o.value == ControlCommandType.BeginString  then
+            if o:is(ControlCommand) and o.value == ControlCommandType.BeginString  then
                 if i >= functionTrimIndex  then
                     functionTrimIndex = 0
                 end
@@ -320,7 +322,7 @@ end
 function StoryState:TrimNewlinesFromOutputStream()
     for i = #self.outputStream, 1, -1 do
         local obj = self.outputStream[i]
-        if obj:is(CommandControl) then
+        if obj:is(ControlCommand) then
             break
         end
         if obj:is(StringValue) and ob:isNonWhitespace() then
@@ -339,7 +341,7 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     for i = #self.outputStream, functionStartPoint, -1 do
         local obj = self.outputStream[i]
         if not obj:is(StringValue) then
-            if obj:is(CommandControl) then break end
+            if obj:is(ControlCommand) then break end
             if obj.isNewLine or obj.isInlineWhiteSpace then
                 table.remove(self.outputStream, i)
                 self:OutputStreamDirty()
@@ -360,7 +362,7 @@ end
 
 function StoryState:SetChosenPath(path, incrementingTurnIndex)
     self._currentChoices = {}
-    local newPointer = self.story.PointerAtPath(path)
+    local newPointer = self.story:PointerAtPath(path)
     if not newPointer:isNull() and newPointer.index == 0 then newPointer.index = 1 end
     self:setCurrentPointer(newPointer)
 
@@ -374,7 +376,7 @@ function StoryState:RemoveExistingGlue()
         local obj = self.outputStream[i]
         if obj:is(Glue) then
             table.remove(self.outputStream, i)
-        elseif obj:is(CommandControl) then
+        elseif obj:is(ControlCommand) then
             break
         end
     end
