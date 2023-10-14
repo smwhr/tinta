@@ -524,10 +524,10 @@ function Story:PerformLogicAndFlowControl(contentObj)
                     end
                 end
             end
-
+            print("PROBE6")
             if self.state:TryExitFunctionEvaluationFromGame() then
                 -- Do nothing
-            elseif self.state.callStack:currentElement().type ~= popType or self.state.callStack:canPop() then
+            elseif self.state.callStack:currentElement().type ~= popType or not self.state.callStack:canPop() then
                 error("Mismatched push/pop in flow")
             else
                 self.state:PopCallStack()
