@@ -140,6 +140,7 @@ function Story:ContinueSingleStep()
     self:Step()
 
     if not self:canContinue() and not self.state.callStack:elementIsEvaluateFromGame() then
+        print("PROBE3")
         self:TryFollowDefaultInvisibleChoice()
     end
 
@@ -152,6 +153,7 @@ function Story:ContinueSingleStep()
                 #self._stateSnapshotAtLastNewline:currentTags(),
                 #self.state:currentTags()
             )
+            print("PROBE4")
             if change == "ExtendedBeyondNewline" then
                 self:RestoreStateSnapshot()
                 return true
@@ -160,7 +162,6 @@ function Story:ContinueSingleStep()
             end
         end
 
-        
         
         if self.state:outputStreamEndsInNewline() then
             if self:canContinue() then
@@ -208,7 +209,7 @@ function Story:Step()
     iStep = iStep + 1
     if iStep > 100 then 
         error("Too many steps ("..iStep..")")
-        -- os.exit(1)
+        os.exit(1)
     end
     print("==============Step", iStep, "=================")
     local shouldAddToStream = true
@@ -290,12 +291,17 @@ end
 
 function Story:NextContent()
     self.state:setPreviousPointer(self.state:currentPointer():Copy())
+    
     if not self.state.divertedPointer:isNull() then
+        print("PROBE 1")
         self.state:setCurrentPointer(self.state.divertedPointer:Copy())
         self.state.divertedPointer = Pointer:Null()
 
         self:VisitChangedContainersDueToDivert()
-        if not self.state:currentPointer():isNull() then return end
+
+        if not self.state:currentPointer():isNull() then
+            return
+        end
     end
 
     local successfulPointerIncrement = self:IncrementContentPointer()
@@ -316,6 +322,7 @@ function Story:NextContent()
         end
 
         if didPop and not self.state:currentPointer():isNull() then
+            print("PROBE2")
             self:NextContent()
         end
 
@@ -576,10 +583,11 @@ function Story:PerformLogicAndFlowControl(contentObj)
             local outputCountConsumed = 0
             for i = #self.state.outputStream, 1, -1 do
                 local obj = self.state.outputStream[i]
+
                 outputCountConsumed = outputCountConsumed + 1
                 
                 if obj:is(ControlCommand) and obj.value == ControlCommandType.BeginString then
-                    -- Do nothing
+                   break
                 end
                 if obj:is(Tag) then
                     table.insert(contentToRetain, obj)
@@ -588,6 +596,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                     table.insert(contentStackForString, obj)
                 end
             end
+
 
             self.state:PopFromOutputStream(outputCountConsumed)
 

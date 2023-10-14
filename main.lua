@@ -5,8 +5,8 @@ local dump = require('libs.dump')
 
 -- local book = require("tests/hello_world")
 -- local book = require("tests/whitespace")
-local book = require("tests/weave_gathers")
--- local book = require("tests/multi_thread")
+-- local book = require("tests/weave_gathers")
+local book = require("tests/multi_thread")
 -- local book = require("tests/thread_in_logic")
 
 function dbg(t)
