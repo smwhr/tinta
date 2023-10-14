@@ -884,6 +884,20 @@ function Story:ChoosePath(p, incrementingTurnIndex)
     self:VisitChangedContainersDueToDivert()
 end
 
+function Story:ChooseChoiceIndex(choiceIdx)
+    choiceIdx = tonumber(choiceIdx)
+    local choices = self:currentChoices()
+    if choiceIdx < 1 or choiceIdx > #choices then
+        error("choice out of range")
+    end
+
+    local choiceToChoose = choices[choiceIdx]
+
+    self.state.callStack:setCurrentThread(choiceToChoose.threadAtGeneration)
+
+    self:ChoosePath(choiceToChoose.targetPath)
+end
+
 function Story:TryFollowDefaultInvisibleChoice()
     local allChoices = self.state._currentChoices
     local invisibleChoices = lume.filter(allChoices, function(c) return c.isInvisibleDefault end)

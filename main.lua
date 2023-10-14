@@ -22,11 +22,23 @@ function next()
     print("Text is ", dump(t))
 end
 
-while story:canContinue() do
-    local t = story:Continue()
-    print("Text is ", dump(t))
-end
-print("----")
-for i,c in ipairs(story:currentChoices()) do
-    print(i, c.text)
-end
+local choices = {}
+
+repeat
+    while story:canContinue() do
+        local t = story:Continue()
+        print(t)
+    end
+    choices = story:currentChoices()
+    for i,c in ipairs(story:currentChoices()) do
+        print(i, c.text)
+    end
+    if #choices > 0 then
+        print("----")
+        io.write("?> ")
+        choiceIndex = io.read()
+        print(choiceIndex)
+        story:ChooseChoiceIndex(choiceIndex)
+    end
+until #choices == 0
+print("DONE")
