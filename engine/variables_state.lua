@@ -5,10 +5,10 @@ local inkutils = require('libs.inkutils')
 local VariablePointerValue = require('values.variable_pointer')
 local ListValue = require('values.list.list_value')
 
----@class VariableState
-local VariableState = classic:extend()
+---@class VariablesState
+local VariablesState = classic:extend()
 
-function VariableState:new(callStack, listDefsOrigin)
+function VariablesState:new(callStack, listDefsOrigin)
     self.globalVariables = {}
     self.callStack = callStack
     self.listDefsOrigin = listDefsOrigin or {}
@@ -20,11 +20,11 @@ function VariableState:new(callStack, listDefsOrigin)
     
 end
 
-function VariableState:SnapshotDefaultGlobals()
+function VariablesState:SnapshotDefaultGlobals()
     self.defaultGlobalVariables = lume.clone(self.globalVariables)
 end
 
-function VariableState:SetGlobal(variableName, value)
+function VariablesState:SetGlobal(variableName, value)
     local oldValue = nil
     if self.patch == nil then
         oldValue = self.globalVariables[variableName]
@@ -48,7 +48,7 @@ function VariableState:SetGlobal(variableName, value)
     end
 end
 
-function VariableState:GetVariableWithName(name, contextIndex)
+function VariablesState:GetVariableWithName(name, contextIndex)
     contextIndex = contextIndex or 0
     local varValue = self:GetRawVariableWithName(name, contextIndex)
 
@@ -59,14 +59,14 @@ function VariableState:GetVariableWithName(name, contextIndex)
     return varValue
 end
 
-function VariableState:GlobalVariableExistsWithName(name)
+function VariablesState:GlobalVariableExistsWithName(name)
     return ( self.globalVariables[name] ~= nil
        or ( self.defaultGlobalVariables ~= nil
             and self.defaultGlobalVariables ~= nil )
     )
 end
 
-function VariableState:GetRawVariableWithName(name, contextIndex)
+function VariablesState:GetRawVariableWithName(name, contextIndex)
 
     if contextIndex == 1 or contextIndex == 0 then
         local variableValue = nil
@@ -78,21 +78,22 @@ function VariableState:GetRawVariableWithName(name, contextIndex)
 
         variableValue = self.globalVariables[name]
         if variableValue ~= nil then return variableValue end
-
         if self.defaultGlobalVariables ~= nil then
             variableValue = self.defaultGlobalVariables[name]
             if variableValue ~= nil then return variableValue end
         end
+        local listItemValue = self.listDefsOrigin:FindSingleItemListWithName(name)
+        if listItemValue then return listItemValue end
     end
 
     return self.callStack:GetTemporaryVariableWithName(name, contextIndex)
 end
 
-function VariableState:ValueAtVariablePointer(pointer)
+function VariablesState:ValueAtVariablePointer(pointer)
     return self:GetVariableWithName(pointer.variableName, pointer.contextIndex)
 end
 
-function VariableState:Assign(varAss, value)
+function VariablesState:Assign(varAss, value)
     local name = varAss.variableName
     local contextIndex = 0
 
@@ -134,7 +135,7 @@ function VariableState:Assign(varAss, value)
     end
 end
 
-function VariableState:ResolveVariablePointer(varPointer)
+function VariablesState:ResolveVariablePointer(varPointer)
     local contextIndex = varPointer.contextIndex
     if contextIndex == 0 then
         contextIndex = self:GetContextIndexOfVariableNamed(varPointer.variableName)
@@ -149,7 +150,7 @@ function VariableState:ResolveVariablePointer(varPointer)
     end
 end
 
-function VariableState:GetContextIndexOfVariableNamed(varName)
+function VariablesState:GetContextIndexOfVariableNamed(varName)
     if self:GlobalVariableExistsWithName(varName) then
         return 1
     end
@@ -157,7 +158,7 @@ function VariableState:GetContextIndexOfVariableNamed(varName)
     return self.callStack:currentElementIndex()
 end
 
-function VariableState:ApplyPatch()
+function VariablesState:ApplyPatch()
     for namedVarKey, namedVarValue in pairs(self.patch._globals) do
         self.globalVariables[namedVarKey] = namedVarValue
     end
@@ -165,13 +166,13 @@ function VariableState:ApplyPatch()
 end
 
 -- Can't declare a 
-function VariableState:_(variableName, value)
+function VariablesState:_(variableName, value)
     --@TODO
     error("Not implemented yet")
 end
 
-function VariableState:__tostring()
-    return "VariableState"
+function VariablesState:__tostring()
+    return "VariablesState"
 end
 
-return VariableState
+return VariablesState

@@ -53,7 +53,6 @@ local Path = classic:extend()
 
 function Path:new()
     self.components = {}
-    
     self.isRelative = false
 end
 

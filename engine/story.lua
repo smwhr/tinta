@@ -1,16 +1,23 @@
-local lume = require('libs.lume')
 local classic = require('libs.classic')
+local lume = require('libs.lume')
 local inkutils = require('libs.inkutils')
 local PRNG = require('libs.prng')
 local dump = require('libs.dump')
 
-local StringValue = require('values.string')
-local IntValue = require('values.integer')
-local FloatValue = require('values.float')
-local BooleanValue = require('values.boolean')
-local Glue = require('values.glue')
-local Void = require('values.void')
-local Tag = require('values.tag')
+BaseValue = require('values.base')
+StringValue = require('values.string')
+IntValue = require('values.integer')
+FloatValue = require('values.float')
+BooleanValue = require('values.boolean')
+Glue = require('values.glue')
+Void = require('values.void')
+Tag = require('values.tag')
+
+local InkList = require('values.list.inklist')
+local ListItem = require('values.list.list_item')
+local ListValue = require('values.list.list_value')
+local ListDefinition = require('values.list.list_definition')
+local ListDefinitionOrigin = require('values.list.list_definition_origin')
 
 local ControlCommand = require('values.control_command')
 local ControlCommandType = require('constants.control_commands.types')
@@ -18,11 +25,11 @@ local ControlCommandName = require('constants.control_commands.names')
 
 
 local NativeFunctionCall = require('values.native_function')
-local NativeFunctionCallName = require('constants.native_functions.names')
 
 local DivertTarget = require('values.divert_target')
 local VariablePointerValue = require('values.variable_pointer')
 local VariableAssignment = require('values.variable_assignment')
+local VariableReference = require('values.variable_reference')
 local Path = require('values.path')
 local Divert = require('values.divert')
 local PushPopType = require('constants.push_pop_type')
@@ -39,11 +46,9 @@ local Story = classic:extend()
 
 
 function Story:new(book)
-  
+    self.listDefinitions = JTokenToListDefinitions(book.listDefs)
     self._mainContentContainer = JTokenToRuntimeObject(book.root)
-    print("Successfull conversion")
-    self.state = StoryState(self)
-    print("Successfull state initialization")
+    self:ResetState()
 
     self.prevContainers = {}
     self._temporaryEvaluationContainer = nil
@@ -140,7 +145,6 @@ function Story:ContinueSingleStep()
     self:Step()
 
     if not self:canContinue() and not self.state.callStack:elementIsEvaluateFromGame() then
-        print("PROBE3")
         self:TryFollowDefaultInvisibleChoice()
     end
 
@@ -153,7 +157,6 @@ function Story:ContinueSingleStep()
                 #self._stateSnapshotAtLastNewline:currentTags(),
                 #self.state:currentTags()
             )
-            print("PROBE4")
             if change == "ExtendedBeyondNewline" then
                 self:RestoreStateSnapshot()
                 return true
@@ -207,11 +210,11 @@ end
 
 function Story:Step()
     iStep = iStep + 1
-    if iStep > 100 then 
+    if iStep > 200 then 
         error("Too many steps ("..iStep..")")
         os.exit(1)
     end
-    print("==============Step", iStep, "=================")
+
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
 
@@ -293,7 +296,6 @@ function Story:NextContent()
     self.state:setPreviousPointer(self.state:currentPointer():Copy())
     
     if not self.state.divertedPointer:isNull() then
-        print("PROBE 1")
         self.state:setCurrentPointer(self.state.divertedPointer:Copy())
         self.state.divertedPointer = Pointer:Null()
 
@@ -322,7 +324,6 @@ function Story:NextContent()
         end
 
         if didPop and not self.state:currentPointer():isNull() then
-            print("PROBE2")
             self:NextContent()
         end
 
@@ -371,7 +372,7 @@ function Story:VisitChangedContainersDueToDivert()
         self:VisitContainer(currentContainerAncestor, enteringAtStart)
 
         currentChildOfContainer = currentContainerAncestor
-        currentContainerAncestor = inkutils.asOrNil(currentContainerAncestor.parent)
+        currentContainerAncestor = inkutils.asOrNil(currentContainerAncestor.parent, Container)
     end
 
 end
@@ -421,7 +422,12 @@ function Story:ResetState()
 end
 
 function Story:ResetGlobals()
-    self.state.variablesState = VariableState(self.state.callStack)
+    if self:mainContentContainer().namedContent["global decl"] ~= nil then
+        local originalPointer = self.state:currentPointer():Copy()
+        self:ChoosePath(Path:FromString("global decl"), false)
+        self:ContinueInternal()
+        self.state:setCurrentPointer(originalPointer)
+    end
     self.state.variablesState:SnapshotDefaultGlobals();
 end
 
@@ -524,7 +530,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                     end
                 end
             end
-            print("PROBE6")
+
             if self.state:TryExitFunctionEvaluationFromGame() then
                 -- Do nothing
             elseif self.state.callStack:currentElement().type ~= popType or not self.state.callStack:canPop() then
@@ -712,14 +718,75 @@ function Story:PerformLogicAndFlowControl(contentObj)
             self.state:ForceEnd()
 
         elseif evalCommand.value == ControlCommandType.ListFromInt then
-            --@TODO: Implement
-            error("ListFromInt not implemented yet")
+            local intVal = inkutils.asOrNil(self.state:PopEvaluationStack(), IntValue)
+            local listNameVal = self.state:PopEvaluationStack()
+            if intVal == nil then
+                error("Passed non-integer when creating a list element from a numerical value.")
+            end
+            local generatedListValue = nil
+            local foundListDef = self.listDefinitions:TryListGetDefinition(listNameVal.value, nil)
+            if foundListDef.exists then
+                local foundItem = foundListDef.result:TryGetItemWithValue(intVal.value, ListItem:Null())
+                if foundItem.exists then
+                    generatedListValue = ListValue(foundItem.result, intVal.value)
+                end
+            else
+                error( "Failed to find LIST called " .. listNameVal.value)
+            end
+            if generatedListValue == nil then
+                generatedListValue = ListValue()
+            end
+            self.state:PushEvaluationStack(generatedListValue)
         elseif evalCommand.value == ControlCommandType.ListRange then
-            --@TODO: Implement
-            error("ListRange not implemented yet")
+            
+            local max = inkutils.asOrNil(self.state:PopEvaluationStack(), BaseValue)
+            local min = inkutils.asOrNil(self.state:PopEvaluationStack(), BaseValue)
+
+            local targetList = inkutils.asOrNil(self.state:PopEvaluationStack(), ListValue)
+
+            if targetList == nil or min == nil or max == nil then
+                error("Expected list, minimum and maximum for LIST_RANGE")
+            end
+
+            local result = targetList.value:ListWithSubRange(
+                min.value, max.value
+            )
+            self.state:PushEvaluationStack(ListValue(result))
+
         elseif evalCommand.value == ControlCommandType.ListRandom then
-            --@TODO: Implement
-            error("ListRandom not implemented yet")
+            local listVal = inkutils.asOrNil(self.state:PopEvaluationStack(), ListValue)
+            if listVal == nil then
+                error("Expected list for LIST_RANDOM")
+            end
+            local list = listVal.value
+            local newList = nil
+
+            if list:Count() == 0 then
+                newList = InkList()
+            else
+                local resultSeed = self.state.storySeed + self.state.previousRandom
+                local random = PRNG(resultSeed)
+                local nextRandom = random:next()
+                local listItemIndex = nextRandom % list:Count() + 1
+                local i = 1
+                local chosenKey = nil
+                local chosenValue = nil
+                for k, v in pairs(list._inner) do
+                    i = i+1
+                    if i == listItemIndex then
+                        chosenKey = k
+                        chosenValue = v
+                    end
+                end
+                local randomItem = {
+                    Key = ListItem:fromSerializedKey(chosenKey),
+                    Value = chosenValue
+                }
+                newList = InkList:FromOriginListName(randomItem.Key.originName, self)
+                newList:Add(randomItem.Key, randomItem.Value)
+                self.state.previousRandom = nextRandom
+            end
+            self.state:PushEvaluationStack(ListValue(newList))
         else
             error("unhandled ControlCommand: " .. evalCommand)
         end
@@ -736,7 +803,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
         local varRef = contentObj
         local foundValue = nil
 
-        if varRef:pathForCount() ~= nil then
+        if varRef.pathForCount ~= nil then
             local container = varRef:containerForCount()
             local count = self.state:VisitCountForContainer(container)
             foundValue = IntValue(count)
@@ -938,7 +1005,6 @@ function Story:DiscardSnapshot()
 end
 
 
-
 function JTokenToRuntimeObject(token)
     if 'number' == type(token) then
         return IntValue(token)
@@ -965,8 +1031,8 @@ function JTokenToRuntimeObject(token)
         end
 
         if (token == "L^") then token = "^" end
-        if NativeFunctionCallName[token] then
-            return NativeFunctionCall(NativeFunctionCallName[token])
+        if NativeFunctionCall:CallExistsWithName(token) then
+            return NativeFunctionCall:CallWithName(token)
         end
 
         if token == "->->" then
@@ -1055,7 +1121,24 @@ function JTokenToRuntimeObject(token)
         end
 
         if obj["list"] then
-            error("List not implemented yet")
+
+            local listContent = obj["list"]
+            local rawList = InkList()
+
+            if obj["origins"] then
+                local namesAsObjs = obj["origins"]
+                rawList:SetInitialOriginNames(namesAsObjs)
+            end
+
+            for key,_ in pairs(listContent) do
+                local nameToVal = listContent[key]
+                local item = ListItem:FromString(key)
+                local val = tonumber(nameToVal)
+                rawList:Add(item, val)
+            end
+
+            return ListValue(rawList)
+            
         end
 
     end
@@ -1113,6 +1196,24 @@ function JArrayToRuntimeObjList(jArray, skipLast)
         end
     end
     return ObjList
+end
+
+function JTokenToListDefinitions(obj)
+
+    local defsObj = obj
+    local allDefs = {}
+
+    for key, listDefJson in pairs(defsObj) do
+        local name = tostring(key)
+
+        local items = {}
+        for nameValueKey, nameValue in pairs(listDefJson) do
+            items[nameValueKey] = tonumber(nameValue)
+        end
+        local def = ListDefinition(name, items)
+        table.insert(allDefs, def)
+    end
+    return ListDefinitionOrigin(allDefs)
 end
 
 function Story:JTokenToRuntimeObject(...)

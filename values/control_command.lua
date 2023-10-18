@@ -5,7 +5,7 @@ local BaseValue = require('values.base')
 local ControlCommand = BaseValue:extend()
 
 function ControlCommand:__tostring()
-    return "ControlCommand"
+    return "ControlCommand ".. self.value
 end
 
 return ControlCommand

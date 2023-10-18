@@ -194,7 +194,9 @@ function CallStack:SetTemporaryVariable(name, value, declareNew, contextIndex)
 
     local oldValue = contextElement.temporaryVariables[name]
 
-    -- @TODO handle LIST element origin
+    if oldValue ~= nil then
+      ListValue:RetainListOriginsForAssignment(oldValue, value)
+    end
 
     contextElement.temporaryVariables[name] = value
 

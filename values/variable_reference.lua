@@ -22,4 +22,8 @@ function VariableReference:containerForCount()
     return Path:Resolve(self, self.pathForCount):container()
 end
 
+function VariableReference:__tostring()
+    return "VariableReference"
+end
+
 return VariableReference

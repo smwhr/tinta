@@ -15,8 +15,13 @@ function DivertTarget:targetPath()
     return self.value
 end
 
-function DivertTarget:__tostring()
-    return "DivertTarget"
+function DivertTarget:Cast(newType)
+
+    if newType == self.valueType then
+        return self
+    end
+
+    self:BadCast(newType)
 end
 
 return DivertTarget

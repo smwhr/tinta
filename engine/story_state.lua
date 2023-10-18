@@ -5,7 +5,7 @@ local inkutils = require('libs.inkutils')
 local PushPopType = require('constants.push_pop_type')
 
 local CallStack = require('engine.call_stack')
-local VariableState = require('engine.variable_state')
+local VariablesState = require('engine.variables_state')
 local Pointer = require('engine.pointer')
 local StringValue = require('values.string')
 local Glue = require('values.glue')
@@ -14,6 +14,8 @@ local ControlCommand = require('values.control_command')
 local ListValue = require('values.list.list_value')
 
 local ControlCommandType = require('constants.control_commands.types')
+
+local VariablesState = require('engine.variables_state')
 
 
 ---@class StatePatch
@@ -79,7 +81,7 @@ function StoryState:new(story)
 
     self.story = story
     self.callStack = CallStack(story)
-    self.variablesState = VariableState(self.callStack)
+    self.variablesState = VariablesState(self.callStack, story.listDefinitions)
     self.evaluationStack = {}
     self.visitCounts = {}
     self.turnIndices = {}
@@ -489,8 +491,20 @@ end
 
 function StoryState:PushEvaluationStack(obj)
     if obj:is(ListValue) then
-        -- @TODO: Implement
-        error("List not implemented yet")
+        local listValue = obj
+        local rawList = listValue.value
+
+        if rawList:originNames() ~= nil then
+            rawList.origins = {}
+
+            for _,n in ipairs(rawList:originNames()) do
+                local def = self.story.listDefinitions:TryListGetDefinition(n, nil)
+                if lume.find(rawList.origins, def.result) == nil then
+                    table.insert(rawList.origins, def.result)
+                end
+            end
+        end
+
     end
     table.insert(self.evaluationStack, obj)
 end

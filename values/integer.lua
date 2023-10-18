@@ -1,7 +1,6 @@
 local classic = require('libs.classic')
 local BaseValue = require('values.base')
 
-
 ---@class IntValue
 local IntValue = BaseValue:extend()
 
@@ -17,8 +16,25 @@ function IntValue:isTruthy()
     return self.value ~= 0
 end
 
-function IntValue:__tostring()
-    return "IntValue"
+function IntValue:Cast(newType)
+
+    if newType == self.valueType then
+        return self
+    end
+
+    if newType == "Boolean" then
+        return BooleanValue(self.value ~= 0)
+    end
+
+    if newType == "Float" then
+        return FloatValue(self.value)
+    end
+
+    if newType == "String" then
+        return StringValue(tostring(self.value))
+    end
+
+    self:BadCast(newType)
 end
 
 return IntValue

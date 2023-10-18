@@ -1,7 +1,6 @@
 local classic = require('libs.classic')
 local BaseValue = require('values.base')
 
-
 ---@class StringValue
 local StringValue = BaseValue:extend()
 
@@ -30,8 +29,31 @@ function StringValue:isTruthy()
     return #self.value > 0
 end
 
-function StringValue:__tostring()
-    return "StringValue"
+function StringValue:Cast(newType)
+
+    if newType == self.valueType then
+        return self
+    end
+
+    if newType == "Int" then
+        local try = tonumber(self.value)
+        if try then
+            return IntValue(self.value)
+        else
+            self:BadCast(newType)
+        end
+    end
+
+    if newType == "Float" then
+        local try = tonumber(self.value)
+        if try then
+            return FloatValue(self.value)
+        else
+            self:BadCast(newType)
+        end
+    end
+
+    self:BadCast(newType)
 end
 
 return StringValue
