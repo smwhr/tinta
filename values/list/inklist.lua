@@ -1,8 +1,8 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
+local inkutils = import('libs.inkutils')
 
-local ListItem = require('values.list.list_item')
+local ListItem = import('values.list.list_item')
 
 ---@class InkList
 local InkList = classic:extend()

@@ -1,9 +1,9 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
+local inkutils = import('libs.inkutils')
 
-local BaseValue = require('values.base')
-local Container = require('values.container')
+local BaseValue = import('values.base')
+local Container = import('values.container')
 
 local ParentID = "^"
 ---@class PathComponent

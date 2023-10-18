@@ -1,5 +1,5 @@
 
-local classic = require('libs.classic')
+local classic = import('libs.classic')
 
 local PRNG = classic:extend()
 

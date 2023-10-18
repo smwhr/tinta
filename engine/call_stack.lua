@@ -1,10 +1,10 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
 
-local Path = require('values.path')
-local PushPopType = require('constants.push_pop_type')
+local Path = import('values.path')
+local PushPopType = import('constants.push_pop_type')
 
-local Pointer = require('engine.pointer')
+local Pointer = import('engine.pointer')
 
 ---@class CallStackThread
 local CallStackThread = classic:extend()

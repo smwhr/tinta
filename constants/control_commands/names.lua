@@ -1,4 +1,4 @@
-local types = require('constants/control_commands/types')
+local types = import('constants/control_commands/types')
 
 return {
     ["ev"] = types.EvalStart,

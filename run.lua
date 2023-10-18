@@ -1,22 +1,24 @@
-local lume = require('libs.lume')
-local classic = require('libs.classic')
-local dump = require('libs.dump')
+if not import then import = require end
+
+local lume = import('libs.lume')
+local classic = import('libs.classic')
+local dump = import('libs.dump')
 
 
--- local book = require("tests/hello_world")
--- local book = require("tests/whitespace")
--- local book = require("tests/weave_gathers")
--- local book = require("tests/multi_thread")
--- local book = require("tests/thread_in_logic")
--- local book = require("tests/conditional_choices")
--- local book = require("tests/list_range")
--- local book = require("tests/logic_in_choices")
+-- local book = import("tests/hello_world")
+-- local book = import("tests/whitespace")
+-- local book = import("tests/weave_gathers")
+-- local book = import("tests/multi_thread")
+-- local book = import("tests/thread_in_logic")
+-- local book = import("tests/conditional_choices")
+-- local book = import("tests/list_range")
+-- local book = import("tests/logic_in_choices")
 
 function load_book(bookname)
     if bookname:sub(#bookname-3,#bookname) == ".lua" then
         bookname = bookname:sub(1,#bookname-4)
     end
-    return require(bookname)
+    return import(bookname)
 end
 
 function dbg(t)
@@ -26,7 +28,7 @@ end
 print("Loading book", arg[1])
 local book = load_book(arg[1])
 
-Story = require('engine.story')
+Story = import('engine.story')
 story = Story(book)
 -- print("LISTDEF ", dump(story.listDefinitions))
 -- print(dump(story:mainContentContainer()))

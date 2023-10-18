@@ -1,4 +1,4 @@
-local classic = require('libs.classic')
+local classic = import('libs.classic')
 
 ---@class Void
 local Void = classic:extend()

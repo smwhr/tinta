@@ -1,13 +1,13 @@
-local classic = require('libs.classic')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local inkutils = import('libs.inkutils')
 
-local BaseValue = require('values.base')
-local InkList = require('values.list.inklist')
-local ListItem = require('values.list.list_item')
+local BaseValue = import('values.base')
+local InkList = import('values.list.inklist')
+local ListItem = import('values.list.list_item')
 
-local IntValue = require('values.integer')
-local FloatValue = require('values.float')
-local StringValue = require('values.string')
+local IntValue = import('values.integer')
+local FloatValue = import('values.float')
+local StringValue = import('values.string')
 
 ---@class ListValue
 local ListValue = BaseValue:extend()

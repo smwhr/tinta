@@ -1,4 +1,4 @@
-local classic = require('libs.classic')
+local classic = import('libs.classic')
 
 
 ---@class Tag

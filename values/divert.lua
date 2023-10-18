@@ -1,12 +1,12 @@
-local classic = require('libs.classic')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local inkutils = import('libs.inkutils')
 
-local BaseValue = require('values.base')
+local BaseValue = import('values.base')
 
-local PushPopType = require('constants.push_pop_type')
-local Path = require('values.path')
-local Pointer = require('engine.pointer')
-local Container = require('values.container')
+local PushPopType = import('constants.push_pop_type')
+local Path = import('values.path')
+local Pointer = import('engine.pointer')
+local Container = import('values.container')
 
 ---@class Divert
 local Divert = classic:extend()

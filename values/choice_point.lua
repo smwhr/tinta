@@ -1,7 +1,7 @@
-local classic = require('libs.classic')
-local BaseValue = require('values.base')
+local classic = import('libs.classic')
+local BaseValue = import('values.base')
 
-local Path = require('values.path')
+local Path = import('values.path')
 
 ---@class ChoicePoint
 local ChoicePoint = classic:extend()

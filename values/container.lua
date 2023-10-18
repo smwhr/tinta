@@ -1,8 +1,8 @@
-local lume = require('libs.lume')
-local classic = require('libs.classic')
-local inkutils = require('libs.inkutils')
+local lume = import('libs.lume')
+local classic = import('libs.classic')
+local inkutils = import('libs.inkutils')
 
-local SearchResult = require('values.search_result')
+local SearchResult = import('values.search_result')
 
 local CountFlags = {
     Visits = 1,

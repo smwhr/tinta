@@ -1,7 +1,7 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
 
-local Path = require('values.path')
+local Path = import('values.path')
 
 ---@class VariableReference
 local VariableReference = classic:extend()

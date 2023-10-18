@@ -1,6 +1,6 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
-local ListItem = require('values.list.list_item')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
+local ListItem = import('values.list.list_item')
 
 ---@class ListDefinition
 local ListDefinition = classic:extend()

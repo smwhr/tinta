@@ -727,7 +727,7 @@ function lume.hotswap(modname)
   oldmod = ok and oldmod or nil
   xpcall(function()
     package.loaded[modname] = nil
-    local newmod = require(modname)
+    local newmod = import(modname)
     if type(oldmod) == "table" then update(oldmod, newmod) end
     for k, v in pairs(oldglobal) do
       if v ~= _G[k] and type(v) == "table" then

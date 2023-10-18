@@ -1,21 +1,21 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
+local inkutils = import('libs.inkutils')
 
-local PushPopType = require('constants.push_pop_type')
+local PushPopType = import('constants.push_pop_type')
 
-local CallStack = require('engine.call_stack')
-local VariablesState = require('engine.variables_state')
-local Pointer = require('engine.pointer')
-local StringValue = require('values.string')
-local Glue = require('values.glue')
-local Path = require('values.path')
-local ControlCommand = require('values.control_command')
-local ListValue = require('values.list.list_value')
+local CallStack = import('engine.call_stack')
+local VariablesState = import('engine.variables_state')
+local Pointer = import('engine.pointer')
+local StringValue = import('values.string')
+local Glue = import('values.glue')
+local Path = import('values.path')
+local ControlCommand = import('values.control_command')
+local ListValue = import('values.list.list_value')
 
-local ControlCommandType = require('constants.control_commands.types')
+local ControlCommandType = import('constants.control_commands.types')
 
-local VariablesState = require('engine.variables_state')
+local VariablesState = import('engine.variables_state')
 
 
 ---@class StatePatch

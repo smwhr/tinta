@@ -1,5 +1,5 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
 
 
 ---@class ListItem

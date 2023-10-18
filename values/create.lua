@@ -1,14 +1,14 @@
-local inkutils = require('libs.inkutils')
+local inkutils = import('libs.inkutils')
 
-local IntValue = require('values.integer')
-local FloatValue = require('values.float')
-local BooleanValue = require('values.boolean')
-local StringValue = require('values.string')
-local DivertTargetValue = require('values.divert_target')
-local ListValue = require('values.list.list_value')
+local IntValue = import('values.integer')
+local FloatValue = import('values.float')
+local BooleanValue = import('values.boolean')
+local StringValue = import('values.string')
+local DivertTargetValue = import('values.divert_target')
+local ListValue = import('values.list.list_value')
 
-local Path = require('values.path')
-local InkList = require('values.list.inklist')
+local Path = import('values.path')
+local InkList = import('values.list.inklist')
 
 function CreateValue(val, preferredNumberType)        
     

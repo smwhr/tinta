@@ -1,9 +1,9 @@
-local classic = require('libs.classic')
-local lume = require('libs.lume')
-local inkutils = require('libs.inkutils')
+local classic = import('libs.classic')
+local lume = import('libs.lume')
+local inkutils = import('libs.inkutils')
 
-local VariablePointerValue = require('values.variable_pointer')
-local ListValue = require('values.list.list_value')
+local VariablePointerValue = import('values.variable_pointer')
+local ListValue = import('values.list.list_value')
 
 ---@class VariablesState
 local VariablesState = classic:extend()
