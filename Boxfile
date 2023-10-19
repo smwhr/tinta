@@ -1,3 +1,5 @@
 {
-    
+    "config": {
+        "lua_import": "source/playdate.lua"
+    }
 }
