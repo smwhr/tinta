@@ -1,8 +1,9 @@
 if not import then import = require end
+package.path = '/?.lua;' .. package.path
 
 local lume = import('libs.lume')
 local classic = import('libs.classic')
-local dump = import('libs.dump')
+dump = import('libs.dump')
 
 
 -- local book = import("tests/hello_world")
@@ -25,17 +26,11 @@ function dbg(t)
     print(dump(t))
 end
 
-print("Loading book", arg[1])
+-- print("Loading book", arg[1])
 local book = load_book(arg[1])
 
 Story = import('engine.story')
 story = Story(book)
--- print("LISTDEF ", dump(story.listDefinitions))
--- print(dump(story:mainContentContainer()))
-function next()
-    local t = story:Continue()
-    print("Text is ", dump(t))
-end
 
 local choices = {}
 
@@ -44,16 +39,15 @@ repeat
         local t = story:Continue()
         io.write(t)
     end
+    io.write("\n")
     choices = story:currentChoices()
     for i,c in ipairs(story:currentChoices()) do
-        print(i, c.text)
+        io.write(i .. ": ", c.text,"\n")
     end
     if #choices > 0 then
-        print("----")
         io.write("?> ")
         choiceIndex = io.read()
-        print(choiceIndex)
         story:ChooseChoiceIndex(choiceIndex)
     end
 until #choices == 0
-print("\nDONE.")
+print("DONE.\n")

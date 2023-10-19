@@ -2,7 +2,6 @@ local classic = import('libs.classic')
 local lume = import('libs.lume')
 local inkutils = import('libs.inkutils')
 local PRNG = import('libs.prng')
-local dump = import('libs.dump')
 
 BaseValue = import('values.base')
 StringValue = import('values.string')
@@ -12,10 +11,10 @@ BooleanValue = import('values.boolean')
 Glue = import('values.glue')
 Void = import('values.void')
 Tag = import('values.tag')
+ListValue = import('values.list.list_value')
 
 local InkList = import('values.list.inklist')
 local ListItem = import('values.list.list_item')
-local ListValue = import('values.list.list_value')
 local ListDefinition = import('values.list.list_definition')
 local ListDefinitionOrigin = import('values.list.list_definition_origin')
 
@@ -1151,7 +1150,7 @@ function JTokenToRuntimeObject(token)
         return nil
     end
     
-    error("101. Failed to convert token to runtime object: ",  dump(token))
+    error("101. Failed to convert token to runtime object: " .. tostring(token))
 end
 
 function JArrayToContainer(jArray)
@@ -1191,7 +1190,7 @@ function JArrayToRuntimeObjList(jArray, skipLast)
             if runtimeObj then
                 table.insert(ObjList, runtimeObj)
             else
-                error("102. Failed to convert token to runtime object", dump(jTok))
+                error("102. Failed to convert token to runtime object" .. tostring(jTok))
             end
         end
     end

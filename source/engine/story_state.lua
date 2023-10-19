@@ -43,7 +43,7 @@ function StatePatch:TryGetGlobal(name, value)
 end
 
 function StatePatch:SetGlobal(name, value)
-    self._globals[names] = value
+    self._globals[name] = value
 end
 
 function StatePatch:AddChangedVariable(name)
@@ -484,7 +484,7 @@ function StoryState:PopEvaluationStack(numberOfObjects)
     end
     local popped = {}
     for i = 1, numberOfObjects do
-        table.insert(popped, table.remove(self.evaluationStack))
+        table.insert(popped, 1, table.remove(self.evaluationStack))
     end
     return popped
 end

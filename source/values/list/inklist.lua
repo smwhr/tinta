@@ -167,7 +167,7 @@ end
 
 function InkList:Without(listToRemove)
     local result = InkList:FromInkList(self)
-    for k, _ in pairs(listToRemove._inner) do
+    for key, _ in pairs(listToRemove._inner) do
         result._inner[key] = nil
     end
     return result
@@ -179,7 +179,7 @@ function InkList:Contains(what)
     end
     local otherList = what
     if #otherList._inner == 0 or #self._inner == 0 then return false end
-    for key, value in pairs(otherList._inner) do
+    for key, _ in pairs(otherList._inner) do
         if not self._inner[key] ~= nil then
             return false
         end
@@ -296,7 +296,9 @@ function InkList:Add(key, value)
 end
 
 function InkList:Remove(key)
+    local ret = self._inner[key:serialized()] ~= nil
     self._inner[key:serialized()] = nil
+    return ret
 end
 
 function InkList:Count()
