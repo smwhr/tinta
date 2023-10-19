@@ -1,36 +1,29 @@
 if not import then import = require end
 package.path = '/?.lua;' .. package.path
 
-local lume = import('libs.lume')
-local classic = import('libs.classic')
-dump = import('libs.dump')
+dump = import('libs/dump')
 
 
--- local book = import("tests/hello_world")
--- local book = import("tests/whitespace")
--- local book = import("tests/weave_gathers")
--- local book = import("tests/multi_thread")
--- local book = import("tests/thread_in_logic")
--- local book = import("tests/conditional_choices")
--- local book = import("tests/list_range")
--- local book = import("tests/logic_in_choices")
+-- local storyDefinition = import("tests/hello_world")
+-- local storyDefinition = import("tests/whitespace")
+-- local storyDefinition = import("tests/weave_gathers")
+-- local storyDefinition = import("tests/multi_thread")
+-- local storyDefinition = import("tests/thread_in_logic")
+-- local storyDefinition = import("tests/conditional_choices")
+-- local storyDefinition = import("tests/list_range")
+-- local storyDefinition = import("tests/logic_in_choices")
 
-function load_book(bookname)
-    if bookname:sub(#bookname-3,#bookname) == ".lua" then
-        bookname = bookname:sub(1,#bookname-4)
+function load_storyDefinition(storyDefinitionName)
+    if storyDefinitionName:sub(#storyDefinitionName-3,#storyDefinitionName) == ".lua" then
+        storyDefinitionName = storyDefinitionName:sub(1,#storyDefinitionName-4)
     end
-    return import(bookname)
+    return import(storyDefinitionName)
 end
 
-function dbg(t)
-    print(dump(t))
-end
+local storyDefinition = load_storyDefinition(arg[1])
 
--- print("Loading book", arg[1])
-local book = load_book(arg[1])
-
-Story = import('engine.story')
-story = Story(book)
+Story = import('engine/story')
+story = Story(storyDefinition)
 
 local choices = {}
 

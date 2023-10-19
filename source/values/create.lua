@@ -1,15 +1,3 @@
-local inkutils = import('libs.inkutils')
-
-local IntValue = import('values.integer')
-local FloatValue = import('values.float')
-local BooleanValue = import('values.boolean')
-local StringValue = import('values.string')
-local DivertTargetValue = import('values.divert_target')
-local ListValue = import('values.list.list_value')
-
-local Path = import('values.path')
-local InkList = import('values.list.inklist')
-
 function CreateValue(val, preferredNumberType)        
     
     if preferredNumberType then
@@ -31,7 +19,7 @@ function CreateValue(val, preferredNumberType)
     elseif type(val) == "number" then
         return FloatValue(val)
     elseif val:is(Path) then
-        return DivertTargetValue(val)
+        return DivertTarget(val)
     elseif val:is(InkList) then
         return ListValue(val)
     end

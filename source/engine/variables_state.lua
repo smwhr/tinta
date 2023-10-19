@@ -1,11 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-local inkutils = import('libs.inkutils')
-
-local VariablePointerValue = import('values.variable_pointer')
-local ListValue = import('values.list.list_value')
-
----@class VariablesState
 local VariablesState = classic:extend()
 
 function VariablesState:new(callStack, listDefsOrigin)

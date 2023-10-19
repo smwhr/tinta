@@ -1,24 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-local inkutils = import('libs.inkutils')
-
-local PushPopType = import('constants.push_pop_type')
-
-local CallStack = import('engine.call_stack')
-local VariablesState = import('engine.variables_state')
-local Pointer = import('engine.pointer')
-local StringValue = import('values.string')
-local Glue = import('values.glue')
-local Path = import('values.path')
-local ControlCommand = import('values.control_command')
-local ListValue = import('values.list.list_value')
-
-local ControlCommandType = import('constants.control_commands.types')
-
-local VariablesState = import('engine.variables_state')
-
-
----@class StatePatch
 local StatePatch = classic:extend()
 
 function StatePatch:new(toCopy)
@@ -72,7 +51,6 @@ function StatePatch:SetTurnIndex(container, index)
     self._turnIndices[container] = index
 end
 
----@class StoryState
 local StoryState = classic:extend()
 
 function StoryState:new(story)

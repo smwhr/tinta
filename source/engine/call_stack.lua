@@ -1,12 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-
-local Path = import('values.path')
-local PushPopType = import('constants.push_pop_type')
-
-local Pointer = import('engine.pointer')
-
----@class CallStackThread
 local CallStackThread = classic:extend()
 
 function CallStackThread:new()
@@ -57,7 +48,6 @@ function CallStackElement:__tostring()
     return "CallStackElement"
 end
 
----@class CallStack
 local CallStack = classic:extend()
 
 function CallStack:new(story)

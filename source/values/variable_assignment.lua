@@ -1,6 +1,3 @@
-local classic = import('libs.classic')
-
----@class VariableAssignment
 local VariableAssignment = classic:extend()
 
 function VariableAssignment:new(variableName, isNewDeclaration, isGlobal)

@@ -1,10 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-
-local ListItem = import('values.list.list_item')
-local ListValue = import('values.list.list_value')
-
----@class ListDefinitionsOrigin
 local ListDefinitionsOrigin = classic:extend()
 
 function ListDefinitionsOrigin:new(lists)

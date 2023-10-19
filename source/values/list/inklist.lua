@@ -1,10 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-local inkutils = import('libs.inkutils')
-
-local ListItem = import('values.list.list_item')
-
----@class InkList
 local InkList = classic:extend()
 
 function InkList:new()

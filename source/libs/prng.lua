@@ -1,6 +1,3 @@
-
-local classic = import('libs.classic')
-
 local PRNG = classic:extend()
 
 -- all parameters in PRNG formula are derived from these 57 secret bits:

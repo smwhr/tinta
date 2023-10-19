@@ -1,12 +1,5 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-local inkutils = import('libs.inkutils')
-
-local BaseValue = import('values.base')
-local Container = import('values.container')
-
 local ParentID = "^"
----@class PathComponent
+
 local PathComponent = classic:extend()
 
 function PathComponent:new(indexOrName)

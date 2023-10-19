@@ -1,9 +1,3 @@
-local classic = import('libs.classic')
-local lume = import('libs.lume')
-
-local Path = import('values.path')
-
----@class VariableReference
 local VariableReference = classic:extend()
 
 function VariableReference:new(name)

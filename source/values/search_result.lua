@@ -1,6 +1,3 @@
-local classic = import('libs.classic')
-
----@class SearchResult
 local SearchResult = classic:extend()
 
 function SearchResult:new()

@@ -1,16 +1,9 @@
-local lume = import('libs.lume')
-local classic = import('libs.classic')
-local inkutils = import('libs.inkutils')
-
-local SearchResult = import('values.search_result')
-
 local CountFlags = {
     Visits = 1,
     Turns = 2,
     CountStartOnly = 4,
 }
 
----@class Container
 local Container = classic:extend()
 
 

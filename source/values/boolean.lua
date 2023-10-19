@@ -1,7 +1,3 @@
-local classic = import('libs.classic')
-local BaseValue = import('values.base')
-
----@class BooleanValue
 local BooleanValue = BaseValue:extend()
 
 function BooleanValue:new(val)

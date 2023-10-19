@@ -1,5 +1,3 @@
-local classic = import('libs.classic')
-
 ---@class Pointer
 local Pointer = classic:extend()
 

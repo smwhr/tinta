@@ -1,6 +1,3 @@
-local classic = import('libs.classic')
-
----@class BaseValue
 local BaseValue = classic:extend()
 
 function BaseValue:new(val)

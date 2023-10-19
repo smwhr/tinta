@@ -1,7 +1,3 @@
-local classic = import('libs.classic')
-local BaseValue = import('values.base')
-
----@class FloatValue
 local FloatValue = BaseValue:extend()
 
 function FloatValue:new(val)

@@ -1,7 +1,3 @@
-local classic = import('libs.classic')
-local BaseValue = import('values.base')
-
----@class VariablePointer
 local VariablePointer = BaseValue:extend()
 
 function VariablePointer:new(varName, contextIndex)

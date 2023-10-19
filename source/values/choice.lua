@@ -1,9 +1,3 @@
-local classic = import('libs.classic')
-local BaseValue = import('values.base')
-
-local Path = import('values.path')
-
----@class Choice
 local Choice = classic:extend()
 
 function Choice:new()

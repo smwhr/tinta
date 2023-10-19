@@ -1,1 +1,1 @@
-Story = import("engine.story")
+Story = import("engine/story")

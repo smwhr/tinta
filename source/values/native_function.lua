@@ -1,16 +1,3 @@
-local classic = import('libs.classic')
-local inkutils = import('libs.inkutils')
-local CreateValue = import('values.create')
-local FName = import('constants.native_functions.names')
-
-local BaseValue = import('values.base')
-local Void = import('values.void')
-local IntValue = import('values.integer')
-local BooleanValue = import('values.boolean')
-local ListValue = import('values.list.list_value')
-local ListItem = import('values.list.list_item')
-
----@class NativeFunctionCall
 local NativeFunctionCall = classic:extend()
 
 local _nativeFunctions = {}
@@ -179,9 +166,9 @@ function NativeFunctionCall:CallType(parametersOfSingleType)
             return CreateValue(resultVal)
         else
             local resultVal = opForTypeObj(val1.value)
-            if self.name == FName.Int then
+            if self.name == NativeFunctionCallName.Int then
                 return CreateValue(resultVal, "Int")
-            elseif self.name == FName.Float then
+            elseif self.name == NativeFunctionCallName.Float then
                 return CreateValue(resultVal, "Float")
             else
                 return CreateValue(resultVal, param1.valueType)
@@ -234,95 +221,95 @@ end
 function GenerateNativeFunctionsIfNecessary()
     if #_nativeFunctions == 0 then
         -- Int operations
-        AddIntBinaryOp(FName.Add, function(x, y) return  x + y end)
-        AddIntBinaryOp(FName.Subtract, function(x, y) return  x - y end)
-        AddIntBinaryOp(FName.Multiply, function(x, y) return  x * y end)
-        AddIntBinaryOp(FName.Divide, function(x, y) return  math.floor(x / y) end)
-        AddIntBinaryOp(FName.Mod, function(x, y) return  x % y end)
-        AddIntUnaryOp(FName.Negate, function(x) return  -x end)
+        AddIntBinaryOp(NativeFunctionCallName.Add, function(x, y) return  x + y end)
+        AddIntBinaryOp(NativeFunctionCallName.Subtract, function(x, y) return  x - y end)
+        AddIntBinaryOp(NativeFunctionCallName.Multiply, function(x, y) return  x * y end)
+        AddIntBinaryOp(NativeFunctionCallName.Divide, function(x, y) return  math.floor(x / y) end)
+        AddIntBinaryOp(NativeFunctionCallName.Mod, function(x, y) return  x % y end)
+        AddIntUnaryOp(NativeFunctionCallName.Negate, function(x) return  -x end)
 
-        AddIntBinaryOp(FName.Equal, function(x, y) return x == y end)
-        AddIntBinaryOp(FName.Greater, function(x, y) return x > y end)
-        AddIntBinaryOp(FName.Less, function(x, y) return x < y end)
-        AddIntBinaryOp(FName.GreaterThanOrEquals, function(x, y) return x >= y end)
-        AddIntBinaryOp(FName.LessThanOrEquals, function(x, y) return x <= y end)
-        AddIntBinaryOp(FName.NotEquals, function(x, y) return x ~= y end)
-        AddIntUnaryOp(FName.Not, function(x) return x == 0 end)
+        AddIntBinaryOp(NativeFunctionCallName.Equal, function(x, y) return x == y end)
+        AddIntBinaryOp(NativeFunctionCallName.Greater, function(x, y) return x > y end)
+        AddIntBinaryOp(NativeFunctionCallName.Less, function(x, y) return x < y end)
+        AddIntBinaryOp(NativeFunctionCallName.GreaterThanOrEquals, function(x, y) return x >= y end)
+        AddIntBinaryOp(NativeFunctionCallName.LessThanOrEquals, function(x, y) return x <= y end)
+        AddIntBinaryOp(NativeFunctionCallName.NotEquals, function(x, y) return x ~= y end)
+        AddIntUnaryOp(NativeFunctionCallName.Not, function(x) return x == 0 end)
 
-        AddIntBinaryOp(FName.And, function(x, y) return x ~= 0 and y ~= 0 end)
-        AddIntBinaryOp(FName.Or, function(x, y) return x ~= 0 or y ~= 0 end)
+        AddIntBinaryOp(NativeFunctionCallName.And, function(x, y) return x ~= 0 and y ~= 0 end)
+        AddIntBinaryOp(NativeFunctionCallName.Or, function(x, y) return x ~= 0 or y ~= 0 end)
 
-        AddIntBinaryOp(FName.Max, function(x, y) return math.max(x, y) end)
-        AddIntBinaryOp(FName.Min, function(x, y) return math.min(x, y) end)
+        AddIntBinaryOp(NativeFunctionCallName.Max, function(x, y) return math.max(x, y) end)
+        AddIntBinaryOp(NativeFunctionCallName.Min, function(x, y) return math.min(x, y) end)
 
-        AddIntBinaryOp(FName.Pow, function(x, y) return math.pow(x, y) end)
-        AddIntUnaryOp(FName.Floor, Identity)
-        AddIntUnaryOp(FName.Ceiling, Identity)
-        AddIntUnaryOp(FName.Int, Identity)
-        AddIntUnaryOp(FName.Float, function(x) return x end)
+        AddIntBinaryOp(NativeFunctionCallName.Pow, function(x, y) return math.pow(x, y) end)
+        AddIntUnaryOp(NativeFunctionCallName.Floor, Identity)
+        AddIntUnaryOp(NativeFunctionCallName.Ceiling, Identity)
+        AddIntUnaryOp(NativeFunctionCallName.Int, Identity)
+        AddIntUnaryOp(NativeFunctionCallName.Float, function(x) return x end)
 
         -- Float operations
 
-        AddFloatBinaryOp(FName.Add, function(x, y) return  x + y end)
-        AddFloatBinaryOp(FName.Subtract, function(x, y) return  x - y end)
-        AddFloatBinaryOp(FName.Multiply, function(x, y) return  x * y end)
-        AddFloatBinaryOp(FName.Divide, function(x, y) return  x / y end)
-        AddFloatBinaryOp(FName.Mod, function(x, y) return  x % y end)
-        AddFloatUnaryOp(FName.Negate, function(x) return  -x end)
+        AddFloatBinaryOp(NativeFunctionCallName.Add, function(x, y) return  x + y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Subtract, function(x, y) return  x - y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Multiply, function(x, y) return  x * y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Divide, function(x, y) return  x / y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Mod, function(x, y) return  x % y end)
+        AddFloatUnaryOp(NativeFunctionCallName.Negate, function(x) return  -x end)
 
-        AddFloatBinaryOp(FName.Equal, function(x, y) return x == y end)
-        AddFloatBinaryOp(FName.Greater, function(x, y) return x > y end)
-        AddFloatBinaryOp(FName.Less, function(x, y) return x < y end)
-        AddFloatBinaryOp(FName.GreaterThanOrEquals, function(x, y) return x >= y end)
-        AddFloatBinaryOp(FName.LessThanOrEquals, function(x, y) return x <= y end)
-        AddFloatBinaryOp(FName.NotEquals, function(x, y) return x ~= y end)
-        AddFloatUnaryOp(FName.Not, function(x) return x == 0 end)
+        AddFloatBinaryOp(NativeFunctionCallName.Equal, function(x, y) return x == y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Greater, function(x, y) return x > y end)
+        AddFloatBinaryOp(NativeFunctionCallName.Less, function(x, y) return x < y end)
+        AddFloatBinaryOp(NativeFunctionCallName.GreaterThanOrEquals, function(x, y) return x >= y end)
+        AddFloatBinaryOp(NativeFunctionCallName.LessThanOrEquals, function(x, y) return x <= y end)
+        AddFloatBinaryOp(NativeFunctionCallName.NotEquals, function(x, y) return x ~= y end)
+        AddFloatUnaryOp(NativeFunctionCallName.Not, function(x) return x == 0 end)
 
-        AddFloatBinaryOp(FName.And, function(x, y) return x ~= 0 and y ~= 0 end)
-        AddFloatBinaryOp(FName.Or, function(x, y) return x ~= 0 or y ~= 0 end)
+        AddFloatBinaryOp(NativeFunctionCallName.And, function(x, y) return x ~= 0 and y ~= 0 end)
+        AddFloatBinaryOp(NativeFunctionCallName.Or, function(x, y) return x ~= 0 or y ~= 0 end)
 
-        AddFloatBinaryOp(FName.Max, function(x, y) return math.max(x, y) end)
-        AddFloatBinaryOp(FName.Min, function(x, y) return math.min(x, y) end)
+        AddFloatBinaryOp(NativeFunctionCallName.Max, function(x, y) return math.max(x, y) end)
+        AddFloatBinaryOp(NativeFunctionCallName.Min, function(x, y) return math.min(x, y) end)
 
-        AddFloatBinaryOp(FName.Pow, function(x, y) return math.pow(x, y) end)
-        AddFloatUnaryOp(FName.Floor, function(x) return math.floor(x) end)
-        AddFloatUnaryOp(FName.Ceiling, function(x) return math.ceil(x) end);
-        AddFloatUnaryOp(FName.Int, function(x) return math.floor(x) end)
-        AddFloatUnaryOp(FName.Float, Identity)
+        AddFloatBinaryOp(NativeFunctionCallName.Pow, function(x, y) return math.pow(x, y) end)
+        AddFloatUnaryOp(NativeFunctionCallName.Floor, function(x) return math.floor(x) end)
+        AddFloatUnaryOp(NativeFunctionCallName.Ceiling, function(x) return math.ceil(x) end);
+        AddFloatUnaryOp(NativeFunctionCallName.Int, function(x) return math.floor(x) end)
+        AddFloatUnaryOp(NativeFunctionCallName.Float, Identity)
 
 
         -- String operations
-        AddStringBinaryOp(FName.Add, function(x, y) return x .. y end)
-        AddStringBinaryOp(FName.Equal, function(x, y) return x == y end)
-        AddStringBinaryOp(FName.NotEquals, function(x, y) return not (x == y) end)
-        AddStringBinaryOp(FName.Has, function(x, y) return string.find(x, y) end)
-        AddStringBinaryOp(FName.Hasnt, function(x, y) return not string.find(x, y) end)
+        AddStringBinaryOp(NativeFunctionCallName.Add, function(x, y) return x .. y end)
+        AddStringBinaryOp(NativeFunctionCallName.Equal, function(x, y) return x == y end)
+        AddStringBinaryOp(NativeFunctionCallName.NotEquals, function(x, y) return not (x == y) end)
+        AddStringBinaryOp(NativeFunctionCallName.Has, function(x, y) return string.find(x, y) end)
+        AddStringBinaryOp(NativeFunctionCallName.Hasnt, function(x, y) return not string.find(x, y) end)
 
 
         -- List operations
 
-        AddListBinaryOp(FName.Add, function(x, y) return x:Union(y) end)
-        AddListBinaryOp(FName.Subtract, function(x, y) return x:Without(y) end)
-        AddListBinaryOp(FName.Has, function(x, y) return x:Contains(y) end)
-        AddListBinaryOp(FName.Hasnt, function(x, y) return not x:Contains(y) end)
-        AddListBinaryOp(FName.Intersect, function(x, y) return x:Intersect(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Add, function(x, y) return x:Union(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Subtract, function(x, y) return x:Without(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Has, function(x, y) return x:Contains(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Hasnt, function(x, y) return not x:Contains(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Intersect, function(x, y) return x:Intersect(y) end)
 
 
-        AddListBinaryOp(FName.Equal, function(x, y) return x:Equals(y) end)
-        AddListBinaryOp(FName.Greater, function(x, y) return x:GreaterThan(y) end)
-        AddListBinaryOp(FName.Less, function(x, y) return x:LessThan(y) end)
-        AddListBinaryOp(FName.GreaterThanOrEquals, function(x, y)
+        AddListBinaryOp(NativeFunctionCallName.Equal, function(x, y) return x:Equals(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Greater, function(x, y) return x:GreaterThan(y) end)
+        AddListBinaryOp(NativeFunctionCallName.Less, function(x, y) return x:LessThan(y) end)
+        AddListBinaryOp(NativeFunctionCallName.GreaterThanOrEquals, function(x, y)
             return x:GreaterThanOrEquals(y)
         end)
-        AddListBinaryOp(FName.LessThanOrEquals, function(x, y)
+        AddListBinaryOp(NativeFunctionCallName.LessThanOrEquals, function(x, y)
             return x:LessThanOrEquals(y)
         end)
-        AddListBinaryOp(FName.NotEquals, function(x, y) return not x:Equals(y) end)
+        AddListBinaryOp(NativeFunctionCallName.NotEquals, function(x, y) return not x:Equals(y) end)
 
-        AddListBinaryOp(FName.And, function(x, y) return x:Count() > 0 and y:Count() > 0 end)
-        AddListBinaryOp(FName.Or, function(x, y) return x:Count() > 0 or y:Count() > 0 end)
+        AddListBinaryOp(NativeFunctionCallName.And, function(x, y) return x:Count() > 0 and y:Count() > 0 end)
+        AddListBinaryOp(NativeFunctionCallName.Or, function(x, y) return x:Count() > 0 or y:Count() > 0 end)
     
-        AddListUnaryOp(FName.Not, function(x) 
+        AddListUnaryOp(NativeFunctionCallName.Not, function(x) 
             if x:Count() == 0 then 
                 return 1 
             else 
@@ -330,19 +317,19 @@ function GenerateNativeFunctionsIfNecessary()
             end 
         end)
 
-        AddListUnaryOp(FName.Invert, function(x) return x:inverse() end)
-        AddListUnaryOp(FName.All, function(x) return x:all() end)
-        AddListUnaryOp(FName.ListMin, function(x) return x:MinAsList() end)
-        AddListUnaryOp(FName.ListMax, function(x) return x:MaxAsList() end)
-        AddListUnaryOp(FName.Count, function(x) return x:Count() end)
-        AddListUnaryOp(FName.ValueOfList, function(x) return x:maxItem().Value end)
+        AddListUnaryOp(NativeFunctionCallName.Invert, function(x) return x:inverse() end)
+        AddListUnaryOp(NativeFunctionCallName.All, function(x) return x:all() end)
+        AddListUnaryOp(NativeFunctionCallName.ListMin, function(x) return x:MinAsList() end)
+        AddListUnaryOp(NativeFunctionCallName.ListMax, function(x) return x:MaxAsList() end)
+        AddListUnaryOp(NativeFunctionCallName.Count, function(x) return x:Count() end)
+        AddListUnaryOp(NativeFunctionCallName.ValueOfList, function(x) return x:maxItem().Value end)
 
 
         local divertTargetsEqual = function(d1, d2) return d1:Equals(d2) end
         local divertTargetsNotEqual = function(d1, d2) return not d1:Equals(d2) end
 
-        AddOpToNativeFunc( FName.Equal,2, "DivertTarget", divertTargetsEqual)
-        AddOpToNativeFunc( FName.NotEquals,2,"DivertTarget", divertTargetsNotEqual)
+        AddOpToNativeFunc( NativeFunctionCallName.Equal,2, "DivertTarget", divertTargetsEqual)
+        AddOpToNativeFunc( NativeFunctionCallName.NotEquals,2,"DivertTarget", divertTargetsNotEqual)
     end
 end
 

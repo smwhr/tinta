@@ -1,15 +1,3 @@
-local classic = import('libs.classic')
-local inkutils = import('libs.inkutils')
-
-local BaseValue = import('values.base')
-local InkList = import('values.list.inklist')
-local ListItem = import('values.list.list_item')
-
-local IntValue = import('values.integer')
-local FloatValue = import('values.float')
-local StringValue = import('values.string')
-
----@class ListValue
 local ListValue = BaseValue:extend()
 
 function  ListValue:new(listOrSingleItem,singleValue)

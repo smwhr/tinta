@@ -1,7 +1,3 @@
-local classic = import('libs.classic')
-local BaseValue = import('values.base')
-
----@class DivertTarget
 local DivertTarget = BaseValue:extend()
 
 function DivertTarget:new(targetPath)
