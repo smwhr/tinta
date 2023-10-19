@@ -171,9 +171,9 @@ function InkList:Contains(what)
         return self:ContainsItemNamed(what)
     end
     local otherList = what
-    if #otherList._inner == 0 or #self._inner == 0 then return false end
+    if lume.count(otherList._inner) == 0 or lume.count(self._inner) == 0 then return false end
     for key, _ in pairs(otherList._inner) do
-        if not self._inner[key] ~= nil then
+        if self._inner[key] == nil then
             return false
         end
     end

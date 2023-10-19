@@ -96,7 +96,6 @@ function Story:Continue()
     return self:currentText();
 end
 
-local iStep = 0
 function Story:ContinueInternal()
     if not self:canContinue() then
         error("Can't continue - should check canContinue() before calling Continue")
@@ -207,12 +206,6 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
 end
 
 function Story:Step()
-    iStep = iStep + 1
-    if iStep > 200 then 
-        error("Too many steps ("..iStep..")")
-        os.exit(1)
-    end
-
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
 
@@ -409,7 +402,7 @@ function Story:VisitContainer(container, atStart)
             self.state:IncrementVisitCountForContainer(container)
         end
         if container.turnIndexShouldBeCounted then
-            self.state:RecordTurnIndexVisitToContainer()
+            self.state:RecordTurnIndexVisitToContainer(container)
         end
     end
 end
@@ -766,7 +759,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 local random = PRNG(resultSeed)
                 local nextRandom = random:next()
                 local listItemIndex = nextRandom % list:Count() + 1
-                local i = 1
+                local i = 0
                 local chosenKey = nil
                 local chosenValue = nil
                 for k, v in pairs(list._inner) do
@@ -855,7 +848,7 @@ function Story:PointerAtPath(path)
 end
 
 function Story:NextSequenceShuffleIndex()
-    local numElementsIntVal = self.state:PopEvaluationStack()
+    local numElementsIntVal = inkutils.asOrNil(self.state:PopEvaluationStack(), IntValue)
     if not numElementsIntVal:is(IntValue) then
         error("expected number of elements in sequence for shuffle index")
     end
@@ -866,7 +859,7 @@ function Story:NextSequenceShuffleIndex()
     local seqCount = seqCountVal.value
 
     local loopIndex = seqCount / numElements
-    local iterationIndex = seqCount % numElements
+    local iterationIndex = seqCount % numElements + 1
     local seqPathStr = Path:of(seqContainer):componentString()
     local sequenceHash = lume.reduce(lume.explode(seqPathStr), function(acc, comp) return acc+string.byte(comp) end, 0)
     local randomSeed = sequenceHash + loopIndex + self.state.storySeed
@@ -874,7 +867,7 @@ function Story:NextSequenceShuffleIndex()
 
     local unpickedIndices = {}
     for i = 1, numElements do
-        table.insert(i)
+        table.insert(unpickedIndices, i)
     end
 
     for i = 1, iterationIndex do

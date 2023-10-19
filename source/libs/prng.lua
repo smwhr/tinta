@@ -43,7 +43,7 @@ function PRNG:next()
       return floor(n % 1 * 2^32) + floor(n)
 end
 
-function PRNG:random(min, max)
+function PRNG:range(min, max)
     if max == nil then
         max = min
         min = 0

@@ -305,7 +305,7 @@ function StoryState:TrimNewlinesFromOutputStream()
         if obj:is(ControlCommand) then
             break
         end
-        if obj:is(StringValue) and ob:isNonWhitespace() then
+        if obj:is(StringValue) and obj:isNonWhitespace() then
             break
         end
         table.remove(self.outputStream, i)
@@ -541,7 +541,7 @@ function StoryState:CleanOutputWhitespace(str)
                 and currentWhitespaceStart > 1
                 and currentWhitespaceStart ~= startOfLine
             ) then
-                list.insert(sb, " ")
+                table.insert(sb, " ")
             end
             currentWhitespaceStart = 0
         end
@@ -549,7 +549,7 @@ function StoryState:CleanOutputWhitespace(str)
         if c == "\n" then startOfLine = i + 1 end
 
         if not isInlineWhiteSpace then
-            list.insert(sb, c)
+            table.insert(sb, c)
         end
     end
     return table.concat(sb)
