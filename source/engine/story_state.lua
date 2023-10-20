@@ -238,7 +238,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
         end
 
         if trimIndex ~= 0 then
-            if obj.isNewLine then
+            if obj.isNewline then
                 includeInOutput = false
             elseif obj:isNonWhitespace() then
                 if glueTrimIndex ~=0 then self:RemoveExistingGlue() end
@@ -256,7 +256,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
                 end
 
             end
-        elseif obj.isNewLine then
+        elseif obj.isNewline then
             if self:outputStreamEndsInNewline() or not self:outputStreamContainsContent() then
                 includeInOutput = false
             end
@@ -285,8 +285,8 @@ function StoryState:outputStreamEndsInNewline()
             local obj = self.outputStream[i]
             if obj:is(ControlCommand) then break end
             if obj:is(StringValue) then
-                if obj.isNewLine then return true
-                elseif obj.isNonWhitespace then break end
+                if obj.isNewline then return true
+                elseif obj:isNonWhitespace() then break end
             end
         end
     end
@@ -302,15 +302,16 @@ end
 
 function StoryState:TrimNewlinesFromOutputStream()
     local removeWhitespaceFrom = 0
+    
     local i = #self.outputStream
 
     while i >= 1 do
         local obj = self.outputStream[i]
         if obj:is(ControlCommand) or (
-            obj:is(StringValue) and obj.isNonWhiteSpace
+            obj:is(StringValue) and obj:isNonWhitespace()
         ) then
             break
-        elseif obj:is(StringValue) and obj:isNonWhitespace() then
+        elseif obj:is(StringValue) and obj.isNewline then
             removeWhitespaceFrom = i
         end
         i = i - 1
@@ -341,7 +342,7 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
         local obj = self.outputStream[i]
         if obj:is(StringValue) then
             if obj:is(ControlCommand) then break end
-            if obj.isNewLine or obj.isInlineWhiteSpace then
+            if obj.isNewline or obj.isInlineWhiteSpace then
                 local r = table.remove(self.outputStream, i)
                 self:OutputStreamDirty()
             else
@@ -646,7 +647,7 @@ function TrySplittingHeadTailWhitespace(single)
             table.insert(listTexts, trailingSpaces)
         end
     end
-    
+
     return listTexts
 end
 
@@ -709,10 +710,10 @@ function StoryState:ApplyAnyPatch()
     self.variablesState:ApplyPatch()
 
     for key, value in pairs(self._patch._visitCounts) do
-        self:ApplyCountChange(key, value, true)
+        self:ApplyCountChanges(key, value, true)
     end
     for key, value in pairs(self._patch._turnIndices) do
-        self:ApplyCountChange(key, value, false)
+        self:ApplyCountChanges(key, value, false)
     end
     self._patch = nil
 end
@@ -720,9 +721,9 @@ end
 function StoryState:ApplyCountChanges(container, newCount,isVisit)
     local containerPathStr = Path:of(container):componentString()
     if isVisit then
-        self._visitCounts[containerPathStr] = newCount
+        self.visitCounts[containerPathStr] = newCount
     else
-        self._turnIndices[containerPathStr] = newCount
+        self.turnIndices[containerPathStr] = newCount
     end
 end
 

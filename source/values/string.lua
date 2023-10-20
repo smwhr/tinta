@@ -4,11 +4,11 @@ function StringValue:new(val)
 
     StringValue.super.new(self, val)
 
-    self.isNewLine = false
+    self.isNewline = false
     self.isInlineWhiteSpace = false
 
     if string.len(self.value) == 1 and string.sub(self.value, 1, 1) == "\n" then
-        self.isNewLine = true
+        self.isNewline = true
     end
 
     self.isInlineWhiteSpace = true
@@ -25,7 +25,7 @@ function StringValue:new(val)
 end
 
 function StringValue:isNonWhitespace()
-    return not self.isNewLine and not self.isInlineWhiteSpace
+    return not self.isNewline and not self.isInlineWhiteSpace
 end
 
 function StringValue:isTruthy()

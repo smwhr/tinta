@@ -39,7 +39,11 @@ repeat
     io.write("\n")
     choices = story:currentChoices()
     for i,c in ipairs(story:currentChoices()) do
-        io.write(i .. ": ", c.text,"\n")
+        io.write(i .. ": ", c.text)
+        if #c.tags > 0 then
+            io.write(" # tags: " .. table.concat(c.tags, ", "), '\n')
+        end
+        io.write("\n")
     end
     if #choices > 0 then
         io.write("?> ")
