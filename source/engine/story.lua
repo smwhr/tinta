@@ -303,9 +303,11 @@ function Story:NextContent()
 
         if self.state.callStack:CanPop(PushPopType.Function) then
             self.state:PopCallStack(PushPopType.Function)
+
             if self.state:inExpressionEvaluation() then
                 self.state:PushEvaluationStack(Void())
             end
+
             didPop = true
         elseif self.state.callStack:canPopThread() then
             self.state.callStack:PopThread()
@@ -593,7 +595,6 @@ function Story:PerformLogicAndFlowControl(contentObj)
                     table.insert(contentStackForString, obj)
                 end
             end
-
 
             self.state:PopFromOutputStream(outputCountConsumed)
 
@@ -1054,13 +1055,13 @@ function JTokenToRuntimeObject(token)
         local currentDivert = nil
         local proValue = nil
         if obj["->"] then
-            currentDivert = Divert()
+            currentDivert = Divert(false, PushPopType.Function, false)
             propValue = obj["->"]
         elseif obj["f()"] then
-            currentDivert = Divert(true)
+            currentDivert = Divert(true, PushPopType.Function, false)
             propValue = obj["f()"]
         elseif obj["->t->"] then
-            currentDivert = Divert(true, PushPopType.Tunnel)
+            currentDivert = Divert(true, PushPopType.Tunnel, false)
             propValue = obj["->t->"]
         elseif obj["x()"] then
             currentDivert = Divert(false, PushPopType.Function, true)

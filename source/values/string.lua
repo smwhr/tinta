@@ -11,9 +11,16 @@ function StringValue:new(val)
         self.isNewLine = true
     end
 
-    if self.value:gsub('^%s*(.-)%s*$', '%1') == "" then
-        self.isInlineWhiteSpace = true
+    self.isInlineWhiteSpace = true
+    for i = 1, string.len(self.value) do
+        local c = self.value:sub(i,i)
+        if c ~= " " and c ~= "\t" then
+            self.isInlineWhiteSpace = false
+            break
+        end
     end
+
+    self.valueType = "String"
 
 end
 

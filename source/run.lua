@@ -3,6 +3,12 @@ package.path = '/?.lua;' .. package.path
 
 dump = import('libs/dump')
 
+function load_storyDefinition(storyDefinitionName)
+    if storyDefinitionName:sub(#storyDefinitionName-3,#storyDefinitionName) == ".lua" then
+        storyDefinitionName = storyDefinitionName:sub(1,#storyDefinitionName-4)
+    end
+    return import(storyDefinitionName)
+end
 
 -- local storyDefinition = import("tests/hello_world")
 -- local storyDefinition = import("tests/whitespace")
@@ -12,15 +18,9 @@ dump = import('libs/dump')
 -- local storyDefinition = import("tests/conditional_choices")
 -- local storyDefinition = import("tests/list_range")
 -- local storyDefinition = import("tests/logic_in_choices")
-
-function load_storyDefinition(storyDefinitionName)
-    if storyDefinitionName:sub(#storyDefinitionName-3,#storyDefinitionName) == ".lua" then
-        storyDefinitionName = storyDefinitionName:sub(1,#storyDefinitionName-4)
-    end
-    return import(storyDefinitionName)
-end
-
 local storyDefinition = load_storyDefinition(arg[1])
+
+
 
 Story = import('engine/story')
 story = Story(storyDefinition)
@@ -31,6 +31,10 @@ repeat
     while story:canContinue() do
         local t = story:Continue()
         io.write(t)
+        local tags = story:currentTags()
+        if  #tags > 0 then
+            io.write(" # tags: " .. table.concat(tags, ", "), '\n')
+        end
     end
     io.write("\n")
     choices = story:currentChoices()

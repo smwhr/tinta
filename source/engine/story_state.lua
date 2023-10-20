@@ -111,7 +111,7 @@ function StoryState:currentText()
                 end
             end
         end
-        self._currentText = table.concat(sb)
+        self._currentText = self:CleanOutputWhitespace(table.concat(sb))
         self.outputStreamTextDirty = false
     end
     return self._currentText
@@ -237,7 +237,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
             trimIndex = functionTrimIndex
         end
 
-        if trimIndex ~= 0  then
+        if trimIndex ~= 0 then
             if obj.isNewLine then
                 includeInOutput = false
             elseif obj:isNonWhitespace() then
@@ -262,6 +262,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
             end
         end
     end
+
     if includeInOutput then
         table.insert(self.outputStream, obj)
         self:OutputStreamDirty()
@@ -300,16 +301,33 @@ function StoryState:outputStreamContainsContent()
 end
 
 function StoryState:TrimNewlinesFromOutputStream()
-    for i = #self.outputStream, 1, -1 do
+    local removeWhitespaceFrom = 0
+    local i = #self.outputStream
+
+    while i >= 1 do
         local obj = self.outputStream[i]
-        if obj:is(ControlCommand) then
+        if obj:is(ControlCommand) or (
+            obj:is(StringValue) and obj.isNonWhiteSpace
+        ) then
             break
+        elseif obj:is(StringValue) and obj:isNonWhitespace() then
+            removeWhitespaceFrom = i
         end
-        if obj:is(StringValue) and obj:isNonWhitespace() then
-            break
-        end
-        table.remove(self.outputStream, i)
+        i = i - 1
     end
+
+    if removeWhitespaceFrom >= 1 then
+        i = removeWhitespaceFrom
+        while i <= #self.outputStream do
+            local obj = self.outputStream[i]
+            if obj:is(StringValue) then
+                table.remove(self.outputStream, i)
+            else
+                i = i+1
+            end
+        end
+    end
+    
     self:OutputStreamDirty()
 end
 
@@ -318,12 +336,13 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     if functionStartPoint == 0 then
         functionStartPoint = 1
     end
+
     for i = #self.outputStream, functionStartPoint, -1 do
         local obj = self.outputStream[i]
-        if not obj:is(StringValue) then
+        if obj:is(StringValue) then
             if obj:is(ControlCommand) then break end
             if obj.isNewLine or obj.isInlineWhiteSpace then
-                table.remove(self.outputStream, i)
+                local r = table.remove(self.outputStream, i)
                 self:OutputStreamDirty()
             else
                 break
@@ -334,7 +353,7 @@ end
 
 function StoryState:PopCallStack()
     if self.callStack:currentElement().type == PushPopType.Function then
-      self:TrimWhitespaceFromFunctionEnd()
+        self:TrimWhitespaceFromFunctionEnd()
     end
 
     self.callStack:Pop(popType);
@@ -560,7 +579,6 @@ function TrySplittingHeadTailWhitespace(single)
     
     local headFirstNewlineIdx = 0
     local headLastNewlineIdx = 0
-    
     for i = 1, #str do
         local c = str:sub(i,i)
         if c == "\n" then
@@ -575,7 +593,6 @@ function TrySplittingHeadTailWhitespace(single)
     
     local tailLastNewlineIdx = 0
     local tailFirstNewlineIdx = 0
-
     for i = #str, 1, -1 do
         local c = str:sub(i,i)
         if c == "\n" then
@@ -602,7 +619,7 @@ function TrySplittingHeadTailWhitespace(single)
             table.insert(listTexts, leadingSpaces)
         end
         table.insert(listTexts, StringValue("\n"))
-        innerStrStart = innerStrStart + 1
+        innerStrStart = headLastNewlineIdx + 1
     end
 
     if tailLastNewlineIdx ~= 0 then
@@ -629,7 +646,7 @@ function TrySplittingHeadTailWhitespace(single)
             table.insert(listTexts, trailingSpaces)
         end
     end
-
+    
     return listTexts
 end
 

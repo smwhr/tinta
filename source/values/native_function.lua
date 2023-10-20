@@ -60,7 +60,6 @@ function NativeFunctionCall:Call(parameters)
     end
 
     local hasList = false
-    -- print("CALL",self.name,"WITH",dump(parameters))
     for _, p in pairs(parameters) do
         if p:is(Void) then
             error('Attempting to perform operation on a void value. Did you forget to "return" a value from a function you called here?')

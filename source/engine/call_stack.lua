@@ -20,7 +20,6 @@ function CallStackThread:__tostring()
     return "CallStackThread"
 end
 
----@class CallStackElement
 local CallStackElement = classic:extend()
 
 function CallStackElement:new(type, pointer, inExpressionEvaluation)
