@@ -684,12 +684,15 @@ function Story:PerformLogicAndFlowControl(contentObj)
             if not seed:is(IntValue) then
                 error("Invalid value passed to SEED_RANDOM")
             end
-            math.randomseed(seed.value)
+
+            math.randomseed(seed.value) --just in case
             self.state.storySeed = seed.value
+            self.state.previousRandom = 0
+
             self.state:PushEvaluationStack(Void())
 
         elseif evalCommand.value == ControlCommandType.VisitIndex then
-            local count = self.state:VisitCountForContainer(self.state:currentPointer().container)
+            local count = self.state:VisitCountForContainer(self.state:currentPointer().container) - 1
             self.state:PushEvaluationStack(IntValue(count))
 
         elseif evalCommand.value == ControlCommandType.SequenceShuffleIndex then
