@@ -449,6 +449,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
         if currentDivert:hasVariableTarget() then
             local varName = currentDivert.variableDivertName
+
             local varContents = self.state.variablesState:GetVariableWithName(varName)
             
             if not varContents then
@@ -460,6 +461,9 @@ function Story:PerformLogicAndFlowControl(contentObj)
             end
 
             self.state.divertedPointer = self:PointerAtPath(varContents:targetPath())
+        elseif currentDivert.isExternal then
+            --@TODO EXTERNALS
+            error("Call to external function is not implementend yet")
         else
             self.state.divertedPointer = currentDivert:targetPointer():Copy()
         end
@@ -530,6 +534,9 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 error("Mismatched push/pop in flow")
             else
                 self.state:PopCallStack()
+                if overrideTunnelReturnTarget then
+                    self.state.divertedPointer = self:PointerAtPath(overrideTunnelReturnTarget:targetPath())
+                end
             end
 
         elseif evalCommand.value == ControlCommandType.BeginString then
@@ -685,7 +692,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
                 error("Invalid value passed to SEED_RANDOM")
             end
 
-            math.randomseed(seed.value) --just in case
+            -- math.randomseed(seed.value) --just in case
             self.state.storySeed = seed.value
             self.state.previousRandom = 0
 
