@@ -338,7 +338,7 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     if functionStartPoint == 0 then
         functionStartPoint = 1
     end
-    
+
     for i = #self.outputStream, functionStartPoint + 1, -1 do
         local obj = self.outputStream[i]
         if obj:is(StringValue) then
@@ -489,8 +489,8 @@ function StoryState:PopEvaluationStack(numberOfObjects)
 end
 
 function StoryState:PushEvaluationStack(obj)
-    if obj:is(ListValue) then
-        local listValue = obj
+    local listValue = inkutils.asOrNil(obj, ListValue)
+    if listValue then
         local rawList = listValue.value
 
         if rawList:originNames() ~= nil then
@@ -504,6 +504,7 @@ function StoryState:PushEvaluationStack(obj)
             end
         end
 
+        -- print(dump(obj.value._inner), dump(obj.value.origins))
     end
     table.insert(self.evaluationStack, obj)
 end

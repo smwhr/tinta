@@ -7,7 +7,7 @@ function VariableAssignment:new(variableName, isNewDeclaration, isGlobal)
 end
 
 function VariableAssignment:__tostring()
-    return "VariableAssignment"
+    return "VarAssign to " .. self.variableName
 end
 
 return VariableAssignment

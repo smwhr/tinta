@@ -44,7 +44,6 @@ function VariablesState:GetVariableWithName(name, contextIndex)
     contextIndex = contextIndex or 0
     local varValue = self:GetRawVariableWithName(name, contextIndex)
     local varPointer = inkutils.asOrNil(varValue, VariablePointerValue)
-
     if varPointer then
         varValue = self:ValueAtVariablePointer(varPointer)
     end
@@ -54,7 +53,7 @@ end
 function VariablesState:GlobalVariableExistsWithName(name)
     return ( self.globalVariables[name] ~= nil
        or ( self.defaultGlobalVariables ~= nil
-            and self.defaultGlobalVariables ~= nil )
+            and self.defaultGlobalVariables[name] ~= nil )
     )
 end
 
@@ -119,7 +118,7 @@ function VariablesState:Assign(varAss, value)
 
         until existingPointer == nil
     end
-
+    
     if setGlobal then
         self:SetGlobal(name, value)
     else
