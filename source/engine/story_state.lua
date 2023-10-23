@@ -201,13 +201,14 @@ function StoryState:PopFromOutputStream(count)
 end
 
 function StoryState:PushToOutputStreamIndividual(obj)
+    local glue = inkutils.asOrNil(obj, Glue)
+    local text = inkutils.asOrNil(obj, StringValue)
+    
     local includeInOutput = true
-    if obj == nil then
-        --Do nothing
-    elseif obj:is(Glue) then
+    if glue then
         self:TrimNewlinesFromOutputStream()
         includeInOutput = true
-    elseif obj:is(StringValue) then
+    elseif text then
         local functionTrimIndex = 0
         local currEl = self.callStack:currentElement()
         if currEl.type == PushPopType.Function then
@@ -238,9 +239,9 @@ function StoryState:PushToOutputStreamIndividual(obj)
         end
 
         if trimIndex ~= 0 then
-            if obj.isNewline then
+            if text.isNewline then
                 includeInOutput = false
-            elseif obj:isNonWhitespace() then
+            elseif text:isNonWhitespace() then
                 if glueTrimIndex ~=0 then self:RemoveExistingGlue() end
                 if functionTrimIndex ~= 0 then
                     local callStackElements = self.callStack:elements()
@@ -256,7 +257,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
                 end
 
             end
-        elseif obj.isNewline then
+        elseif text.isNewline then
             if self:outputStreamEndsInNewline() or not self:outputStreamContainsContent() then
                 includeInOutput = false
             end
@@ -337,13 +338,13 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     if functionStartPoint == 0 then
         functionStartPoint = 1
     end
-
-    for i = #self.outputStream, functionStartPoint, -1 do
+    
+    for i = #self.outputStream, functionStartPoint + 1, -1 do
         local obj = self.outputStream[i]
         if obj:is(StringValue) then
             if obj:is(ControlCommand) then break end
             if obj.isNewline or obj.isInlineWhiteSpace then
-                local r = table.remove(self.outputStream, i)
+                table.remove(self.outputStream, i)
                 self:OutputStreamDirty()
             else
                 break

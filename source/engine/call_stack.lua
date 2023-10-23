@@ -60,16 +60,18 @@ function CallStack:new(story)
 end
 
 function CallStack:Clone()
-    local toCopy = CallStack()
-    toCopy.threads = {}
+    local toCopy = self
+    local newCopy = CallStack()
+    
+    newCopy.threads = {}
 
-    for _, otherThread in pairs(self.threads) do
-        table.insert(toCopy.threads, otherThread:Copy())
+    for _, otherThread in pairs(toCopy.threads) do
+        table.insert(newCopy.threads, otherThread:Copy())
     end
-    toCopy.threadCounter = self.threadCounter
-    toCopy.startOfRoot = self.startOfRoot
+    newCopy.threadCounter = toCopy.threadCounter
+    newCopy.startOfRoot = toCopy.startOfRoot:Copy()
 
-    return toCopy
+    return newCopy
 end
 
 

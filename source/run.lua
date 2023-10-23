@@ -41,7 +41,7 @@ repeat
     for i,c in ipairs(story:currentChoices()) do
         io.write(i .. ": ", c.text)
         if #c.tags > 0 then
-            io.write(" # tags: " .. table.concat(c.tags, ", "), '\n')
+            io.write(" # tags: " .. table.concat(c.tags, ", "))
         end
         io.write("\n")
     end

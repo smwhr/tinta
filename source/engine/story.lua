@@ -52,6 +52,7 @@ function Story:new(book)
     self._temporaryEvaluationContainer = nil
 
     self._stateSnapshotAtLastNewline = nil
+    self.asyncSaving = false
 end
 
 function Story:mainContentContainer()
@@ -204,9 +205,13 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
     return "NoChange"
 end
 
+local iStep = 0
 function Story:Step()
+    iStep = iStep + 1
+    -- print("====="..iStep.."=======")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
+    -- print(dump(pointer))
 
     if pointer:isNull() then
         return
@@ -227,10 +232,11 @@ function Story:Step()
     self.state:setCurrentPointer(pointer:Copy())
 
     local currentContentObj = pointer:Resolve()
+    -- print(currentContentObj)
 
     local isLogicOrFlowControl = self:PerformLogicAndFlowControl(currentContentObj)
 
-    
+    -- print(dump(self.state:currentPointer()))
     if self.state:currentPointer():isNull() then
         return
     end
@@ -239,8 +245,8 @@ function Story:Step()
         shouldAddToStream = false
     end
 
-    if currentContentObj and currentContentObj:is(ChoicePoint) then
-        local choicePoint = currentContentObj
+    local choicePoint = inkutils.asOrNil(currentContentObj, ChoicePoint)
+    if choicePoint then
         local threadAtGeneration = self.state.callStack:ForkThread()
         local choice = self:ProcessChoice(choicePoint, threadAtGeneration)
         if choice then
@@ -255,8 +261,8 @@ function Story:Step()
     end
 
     if shouldAddToStream then
-        if currentContentObj and currentContentObj:is(VariablePointerValue) then
-            local varPointer = currentContentObj
+        local varPointer = inkutils.asOrNil(currentContentObj, VariablePointerValue)
+        if varPointer then
             if varPointer.contextIndex == 0 then
                 local contextIdx = self.state.callStack:ContextForVariableNamed(varPointer.variableName)
                 currentContentObj = VariablePointerValue(
@@ -274,8 +280,8 @@ function Story:Step()
 
     self:NextContent()
 
-    if currentContentObj and currentContentObj:is(ControlCommand) then
-        local controlCmd = currentContentObj
+    local controlCmd = inkutils.asOrNil(currentContentObj, ControlCommand)
+    if controlCmd then
         if controlCmd.value == ControlCommandType.StartThread then
             self.state.callStack:PushThread()
         end
@@ -319,6 +325,7 @@ function Story:NextContent()
         end
 
     end
+    -- print(dump(self.state:currentPointer()))
 end
 
 function Story:VisitChangedContainersDueToDivert()

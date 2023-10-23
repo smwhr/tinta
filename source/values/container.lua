@@ -34,7 +34,7 @@ function Container:AddContent(contentOrList)
 end
 
 function Container:TryAddNamedContent(contentObj)
-    if contentObj.name ~= nil then
+    if contentObj.name ~= nil and contentObj:is(Container) then
         self:AddToNamedContentOnly(contentObj)
     end
 end
@@ -96,7 +96,7 @@ function Container:namedOnlyContent()
     end
 
     for _,c in ipairs(self.content) do
-        if c.name ~= nil then
+        if c.name ~= nil and c:is(Container) then
             namedOnlyContentDict[c.name] = nil
         end
     end

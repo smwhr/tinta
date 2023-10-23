@@ -104,7 +104,7 @@ function Path:of(element)
             local child = element
             local container = inkutils.asOrNil(child.parent, Container)
             while container ~= nil do
-                if child.name then
+                if child.name and child:is(Container) then
                     table.insert(comps, 1, PathComponent(child.name))
                 else
                     local childIndex = lume.find(container.content, child) -1 

@@ -20,4 +20,8 @@ function DivertTarget:Cast(newType)
     self:BadCast(newType)
 end
 
+function DivertTarget:__tostring()
+    return  "DivertTargetValue(" .. self:targetPath():componentString() .. ")";
+end
+
 return DivertTarget
