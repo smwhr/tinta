@@ -204,7 +204,6 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
     return "NoChange"
 end
 
-
 function Story:Step()
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
@@ -970,15 +969,20 @@ function Story:ChooseChoiceIndex(choiceIdx)
 end
 
 function Story:TryFollowDefaultInvisibleChoice()
-    local allChoices = self.state._currentChoices
+    local allChoices = self.state:currentChoices()
     local invisibleChoices = lume.filter(allChoices, function(c) return c.isInvisibleDefault end)
     if #invisibleChoices == 0 or #allChoices > #invisibleChoices then return false end
 
     local choice = invisibleChoices[1]
 
-    self.state.callStack:setCurrentThread(self.state.callStack:ForkThread())
+    self.state.callStack:setCurrentThread(choice.threadAtGeneration)
 
-    self:ChoosePath(choice.target, false)
+    if self._stateSnapshotAtLastNewline ~= nil then
+        self.state.callStack:setCurrentThread(self.state.callStack:ForkThread())
+    end
+
+
+    self:ChoosePath(choice.targetPath, false)
     
     return true
 end
@@ -1109,7 +1113,7 @@ function JTokenToRuntimeObject(token)
         end
         if obj["CNT?"] then
             local readCountVarRef = VariableReference()
-            readCountVarRef.pathStringForCount = obj["CNT?"]
+            readCountVarRef:setPathStringForCount(obj["CNT?"])
             return readCountVarRef
         end
 

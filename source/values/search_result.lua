@@ -13,7 +13,7 @@ function SearchResult:correctObj()
 end
 
 function SearchResult:container()
-    if tostring(self.obj) == "Container" then
+    if self.obj:is(Container) then
         return self.obj
     end
     return nil

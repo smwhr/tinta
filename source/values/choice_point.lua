@@ -33,7 +33,7 @@ function ChoicePoint:pathOnChoice()
 end
 
 function ChoicePoint:__tostring()
-    return "ChoicePoint"
+    return "Choice: -> " .. self:pathOnChoice():componentString()
 end
 
 return ChoicePoint
