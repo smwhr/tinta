@@ -257,11 +257,18 @@ function InkList:ListWithSubRange(minBound, maxBound)
 end
 
 function InkList:Equals(otherInkList)
-    if not otherInkList:is(InkList) then return false end
-    if self:Count() ~= otherInkList:Count() then return false end
 
-    for k,_ in pairs(self._inner) do
-        if otherInkList._inner[key] == nil then return false end
+    if not otherInkList:is(InkList) then 
+        return false 
+    end
+    if self:Count() ~= otherInkList:Count() then 
+        return false 
+    end
+
+    for key,_ in pairs(self._inner) do
+        if otherInkList._inner[key] == nil then 
+            return false 
+        end
     end
     return true
 end

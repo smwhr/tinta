@@ -146,7 +146,7 @@ function Story:ContinueSingleStep()
     end
 
     if not self.state:inStringEvaluation() then
-        
+
         if self._stateSnapshotAtLastNewline ~= nil then
             local change = self:CalculateNewlineOutputStateChange(
                 self._stateSnapshotAtLastNewline:currentText(),
@@ -161,7 +161,6 @@ function Story:ContinueSingleStep()
                 self:DiscardSnapshot()
             end
         end
-
         
         if self.state:outputStreamEndsInNewline() then
             if self:canContinue() then
@@ -191,7 +190,7 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
       return "NoChange"
     end
 
-    if not newlineStillExists then return "NewLineRemoved" end
+    if not newlineStillExists then return "NewlineRemoved" end
 
     if currTagCount > prevTagCount then
         return "ExtendedBeyondNewline"
@@ -204,6 +203,7 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
     end
     return "NoChange"
 end
+
 
 function Story:Step()
     local shouldAddToStream = true
@@ -285,7 +285,6 @@ end
 
 function Story:NextContent()
     self.state:setPreviousPointer(self.state:currentPointer():Copy())
-    
     if not self.state.divertedPointer:isNull() then
         self.state:setCurrentPointer(self.state.divertedPointer:Copy())
         self.state.divertedPointer = Pointer:Null()
@@ -303,7 +302,6 @@ function Story:NextContent()
 
         if self.state.callStack:CanPop(PushPopType.Function) then
             self.state:PopCallStack(PushPopType.Function)
-
             if self.state:inExpressionEvaluation() then
                 self.state:PushEvaluationStack(Void())
             end
@@ -520,8 +518,8 @@ function Story:PerformLogicAndFlowControl(contentObj)
             local overrideTunnelReturnTarget = nil
             if popType == PushPopType.Tunnel then
                 local popped = self.state:PopEvaluationStack()
-                overrideTunnelReturnTarget = popped
-                if(not overrideTunnelReturnTarget:is(DivertTarget)) then
+                overrideTunnelReturnTarget = inkutils.asOrNil(popped, DivertTarget)
+                if(not overrideTunnelReturnTarget) then
                     if not popped:is(Void) then
                         error("Expected void if ->-> doesn't override target")
                     end
@@ -886,7 +884,7 @@ function Story:NextSequenceShuffleIndex()
         local chosenIndex = unpickedIndices[chosen]
         table.remove(unpickedIndices, chosen)
         if i == iterationIndex then
-            return chosenIndex
+            return chosenIndex - 1
         end
     end
 

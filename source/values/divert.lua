@@ -58,7 +58,29 @@ function Divert:targetPointer()
 end
 
 function Divert:__tostring()
-    return "Divert"
+    if self:hasVariableTarget() then
+        return "Divert(variable: " .. self.variableDivertName .. ")"
+    elseif self:targetPath() == nil then
+        return "Divert(null)"
+    else
+        local sb = {}
+        table.insert( sb,  "Divert" )
+
+        if self.isConditional then table.insert(sb, "?") end
+
+        if self.pushesToStack then
+            if self.stackPushType == PushPopType.Function then
+                table.insert(sb, " function")
+            else
+                table.insert(sb, " tunnel")    
+            end
+        end
+
+        table.insert( sb, " -> " )
+        table.insert( sb, self:targetPath():componentString())
+        return table.concat(sb)
+
+    end
 end
 
 return Divert
