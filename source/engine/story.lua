@@ -241,7 +241,8 @@ function Story:Step()
 
     if currentContentObj and currentContentObj:is(ChoicePoint) then
         local choicePoint = currentContentObj
-        local choice = self:ProcessChoice(choicePoint)
+        local threadAtGeneration = self.state.callStack:ForkThread()
+        local choice = self:ProcessChoice(choicePoint, threadAtGeneration)
         if choice then
             table.insert(self.state:generatedChoices(), choice)
         end
@@ -907,7 +908,7 @@ function Story:PopChoiceStringAndTags(tags)
     return choiceOnlyStrVal.value
 end
 
-function Story:ProcessChoice(choicePoint)
+function Story:ProcessChoice(choicePoint, threadAtGeneration)
     local showChoice = true
     if choicePoint.hasCondition then
         local conditionValue = self.state:PopEvaluationStack()
@@ -941,7 +942,7 @@ function Story:ProcessChoice(choicePoint)
     choice.targetPath = choicePoint:pathOnChoice()
     choice.sourcePath = Path:of(choicePoint):componentString()
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
-    choice.threadAtGeneration = self.state.callStack:ForkThread();
+    choice.threadAtGeneration = threadAtGeneration
     choice.tags = lume.reverse(tags)
     choice.text = lume.trim(startText .. choiceOnlyText)
 

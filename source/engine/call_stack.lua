@@ -76,7 +76,7 @@ end
 function CallStack:Reset()
     self.threads = {}
 
-    newThread = CallStackThread()
+    local newThread = CallStackThread()
     table.insert(newThread.callStack, 
                     CallStackElement(
                         PushPopType.Tunnel,
