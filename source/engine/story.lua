@@ -640,7 +640,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
             
             local divertTarget = target
             local container = inkutils.asOrNil(
-                self:ContentAtPath(divertTarget.targetPath):correctObj(),
+                self:ContentAtPath(divertTarget:targetPath()):correctObj(),
                 Container
             )
             local eitherCount = -1
@@ -708,7 +708,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
             -- Done in main step function
         elseif evalCommand.value == ControlCommandType.Done then
             if self.state.callStack:canPopThread() then
-                self.callStack:PopThread()
+                self.state.callStack:PopThread()
             else
                 self.state.didSafeExit = true
                 self.state:setCurrentPointer(Pointer:Null())
@@ -827,6 +827,10 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
     -- no control content, must be ordinary content
     return false
+end
+
+function Story:ContentAtPath(path)
+    return self:mainContentContainer():ContentAtPath(path)
 end
 
 function Story:PointerAtPath(path)

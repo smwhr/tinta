@@ -43,9 +43,9 @@ end
 function VariablesState:GetVariableWithName(name, contextIndex)
     contextIndex = contextIndex or 0
     local varValue = self:GetRawVariableWithName(name, contextIndex)
+    local varPointer = inkutils.asOrNil(varValue, VariablePointerValue)
 
-    if varValue:is(VariablePointerValue) then
-        local varPointer = varValue
+    if varPointer then
         varValue = self:ValueAtVariablePointer(varPointer)
     end
     return varValue
