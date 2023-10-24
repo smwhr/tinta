@@ -16,4 +16,21 @@ function ink.isInteger(val)
     return f == 0
 end
 
+local elapsedTime = nil
+function ink.resetElapsedTime()
+    if playdate then
+        playdate.resetElapsedTime()
+    else
+        elapsedTime = os.clock() * 1000
+    end
+end
+
+function ink.getElapsedTime()
+    if playdate then
+        playdate.getElapsedTime()
+    else
+        return os.clock()*1000 - elapsedTime
+    end
+end
+
 return ink

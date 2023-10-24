@@ -53,6 +53,7 @@ function Story:new(book)
 
     self._stateSnapshotAtLastNewline = nil
     self.asyncSaving = false
+    self._asyncContinueActive = false
 end
 
 function Story:mainContentContainer()
@@ -67,7 +68,12 @@ function Story:canContinue()
     return self.state:canContinue()
 end
 
+function Story:asyncContinueComplete()
+    return not self._asyncContinueActive
+end
+
 function Story:currentText()
+    self:IfAsyncWeCant("call currentText since it's a work in progress")
     return self.state:currentText()
 end
 function Story:currentTags()
@@ -92,22 +98,44 @@ function Story:currentWarnings()
     return self.state:currentWarnings()
 end
 
+function Story:ContinueAsync(millisecsLimitAsync)
+    self:ContinueInternal(millisecsLimitAsync)
+end
+
 function Story:Continue()
-    self:ContinueInternal()
+    self:ContinueInternal(0)
     return self:currentText();
 end
 
-function Story:ContinueInternal()
-    if not self:canContinue() then
-        error("Can't continue - should check canContinue() before calling Continue")
+function Story:ContinueInternal(millisecsLimitAsync)
+
+    millisecsLimitAsync = millisecsLimitAsync or 0
+    isAsyncTimeLimited = millisecsLimitAsync > 0
+
+    if not self._asyncContinueActive then
+        self._asyncContinueActive = isAsyncTimeLimited
+
+        if not self:canContinue() then
+            error("Can't continue - should check canContinue() before calling Continue")
+        end
+        self.state.didSafeExit = false;
+        self.state:ResetOutput();
     end
-    self.state.didSafeExit = false;
-    self.state:ResetOutput();
+
+    durationStop = inkutils.resetElapsedTime()
 
     local outputStreamEndsInNewline = false
     repeat
         outputStreamEndsInNewline = self:ContinueSingleStep();
         if outputStreamEndsInNewline then break end
+
+        if 
+            self._asyncContinueActive 
+            and inkutils.getElapsedTime() > millisecsLimitAsync
+        then
+            break
+        end
+        
     until not self:canContinue()
 
     if outputStreamEndsInNewline or not self:canContinue() then
@@ -135,7 +163,14 @@ function Story:ContinueInternal()
                 end
             end
         end
-        self.state.didSafeExit = false;
+        self.state.didSafeExit = false
+        self._asyncContinueActive = false
+    end
+end
+
+function Story:IfAsyncWeCant(activityStr)
+    if self._asyncContinueActive then
+        error("Can't " .. activityStr .. ". Story is in the middle of a ContinueAsync(). Make more ContinueAsync() calls or a single Continue() call beforehand.")
     end
 end
 
@@ -421,6 +456,7 @@ function Story:VisitContainer(container, atStart)
 end
 
 function Story:ResetState()
+    self:IfAsyncWeCant("ResetState")
     self.state = StoryState(self)
     self:ResetGlobals()
 end
@@ -1006,6 +1042,15 @@ function Story:TryFollowDefaultInvisibleChoice()
     self:ChoosePath(choice.targetPath, false)
     
     return true
+end
+
+function Story:ContinueMaximally()
+    self:IfAsyncWeCant("Continue Maximally")
+    local sb = {}
+    while self:canContinue() do
+        table.insert(self:Continue())
+    end
+    return table.concat(sb)
 end
 
 -- SnapshotManagement
