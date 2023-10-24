@@ -27,7 +27,7 @@ end
 
 function ink.getElapsedTime()
     if playdate then
-        playdate.getElapsedTime()
+        return playdate.getElapsedTime()
     else
         return os.clock()*1000 - elapsedTime
     end
