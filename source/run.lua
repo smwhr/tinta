@@ -28,16 +28,30 @@ story = Story(storyDefinition)
 local choices = {}
 
 repeat
-    while story:canContinue() or not story:asyncContinueComplete() do
+
+    --- ASYNC VERSION
+    local textBuffer = {}
+    repeat
         story:ContinueAsync(300)
-    end
-    local t = story:currentText()
-    io.write(t)
-    local tags = story:currentTags()
-    if  #tags > 0 then
-        io.write(" # tags: " .. table.concat(tags, ", "), '\n')
+        if story:asyncContinueComplete() then
+            local currentText = story:currentText()
+            local currentTags = story:currentTags()
+            table.insert(textBuffer,{
+                text = currentText,
+                tags = currentTags
+            })
+        end
+    until not story:canContinue()
+
+    for _, item in pairs(textBuffer) do
+        io.write(item.text)
+        if #item.tags > 0 then
+            io.write(" # tags: " .. table.concat(item.tags, ", "), '\n')
+        end
     end
     
+
+    --- SIMPLE SYNC VERSION
     -- while story:canContinue() do
     --     local t = story:Continue()
     --     io.write(t)
@@ -46,6 +60,8 @@ repeat
     --         io.write(" # tags: " .. table.concat(tags, ", "), '\n')
     --     end
     -- end
+
+
     io.write("\n")
     choices = story:currentChoices()
     for i,c in ipairs(story:currentChoices()) do

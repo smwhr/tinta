@@ -129,6 +129,7 @@ function Story:ContinueInternal(millisecsLimitAsync)
         outputStreamEndsInNewline = self:ContinueSingleStep();
         if outputStreamEndsInNewline then break end
 
+        print(inkutils.getElapsedTime())
         if 
             self._asyncContinueActive 
             and inkutils.getElapsedTime() > millisecsLimitAsync
@@ -249,7 +250,7 @@ function Story:Step()
     -- if iStep == 1338 then os.exit() end
     -- if iStep == 9984 then os.exit() end
     -- if iStep == 9987 then os.exit() end
-    -- print("====="..iStep.."=======")
+    print("====="..iStep.."=======")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
     -- print(dump(pointer))
