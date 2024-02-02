@@ -5,6 +5,10 @@ function VariableReference:new(name)
     self.pathForCount = nil -- Path
 end
 
+function VariableReference:pathStringForCount()
+    return Path:of(self):CompactPathString(self.pathForCount)
+end
+
 
 function VariableReference:setPathStringForCount(value)
     if value == nil then self.pathForCount = nil end
@@ -22,7 +26,7 @@ function VariableReference:__tostring()
     else
         local pathStr = "null"
         if self.pathForCount then
-            pathStr = self.pathForCount:componentString()
+            pathStr = self.pathForCount:componentsString()
         else
             error("")
         end

@@ -11,4 +11,8 @@ function Choice:new()
     self.originalThreadIndex = 1
 end
 
+function Choice:pathStringOnChoice()
+    return self.targetPath:componentsString()
+end
+
 return Choice

@@ -33,6 +33,16 @@ function PathComponent:asString()
     end
 end
 
+function PathComponent:Equals(otherComp)
+    if otherComp ~= nil and otherComp:isIndex() == self:isIndex() then
+        if self.isIndex() then
+            return self.index == otherComp.index
+        else
+            return self.name == otherComp.name
+        end
+    end
+end
+
 function PathComponent:__tostring()
     return "PathComponent"
 end
@@ -93,6 +103,28 @@ function Path:fromPathComponents(components, relative)
     path.components = components
     path.isRelative = relative or false
     return path
+end
+
+function Path:ByAppendingPath(pathToAppend)
+    local newPathComps = {}
+    local upwardMoves = 0
+    for _,comp in pairs(self.components) do
+        if comp:isParent() then
+            upwardMoves = upwardMoves + 1
+        else
+            break
+        end
+    end
+
+    for i = 1, self:length() - upwardMoves do
+        table.insert(newPathComps, self.components[i])
+    end
+
+    for i = upwardMoves, pathToAppend:length() do
+        table.insert(newPathComps, pathToAppend.components[i])
+    end
+
+    return Path:fromPathComponents(newPathComps)
 end
 
 function Path:of(element)
@@ -160,7 +192,7 @@ function Path:Resolve(obj, path)
     end
 end
 
-function Path:componentString()
+function Path:componentsString()
     local sb = {}
 
     for _,comp in pairs(self.components) do
@@ -173,6 +205,60 @@ function Path:componentString()
     else
         return componentString
     end
+end
+
+function Path:ConvertPathToRelative(globalPath)
+    local ownPath = self
+    local minPathLength = math.min(globalPath:length(), ownPath:length())
+
+    local lastSharedPathCompIndex = 0
+    for i = 1, minPathLength do
+        local ownComp = ownPath.components[i]
+        local otherComp = globalPath.components[i]
+        
+        if ownComp:Equals(otherComp) then
+            lastSharedPathCompIndex = i
+        else
+            break
+        end
+    end
+
+    if lastSharedPathCompIndex == 0 then
+        return globalPath
+    end
+
+    local numUpwardMoves = ownPath:length() - 1 - lastSharedPathCompIndex
+    local newPathComps = {}
+    for up = 1, numUpwardMoves do
+        table.insert(newPathComps, PathComponent:ToParent())
+    end
+
+    for down = lastSharedPathCompIndex + 1, globalPath:length(), -1 do
+        table.insert(newPathComps,globalPath[down])
+    end
+
+    return Path:fromPathComponents(newPathComps)
+end
+
+function Path:CompactPathString(otherPath)
+    local globalPathStr = nil
+    local relativePathStr = nil
+
+    if otherPath.isRelative then
+        relativePathStr = otherPath:componentsString()
+        globalPathStr = self:ByAppendingPath(otherPath):componentsString()
+    else
+        local relativePath = self:ConvertPathToRelative(otherPath)
+        relativePathStr = relativePath:componentsString()
+        globalPathStr = otherPath:componentsString()
+    end
+
+    if #relativePathStr < #globalPathStr then
+        return relativePathStr
+    else
+        return globalPathStr
+    end
+
 end
 
 function Path:__tostring()

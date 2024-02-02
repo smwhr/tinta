@@ -21,7 +21,7 @@ function DivertTarget:Cast(newType)
 end
 
 function DivertTarget:__tostring()
-    return  "DivertTargetValue(" .. self:targetPath():componentString() .. ")";
+    return  "DivertTargetValue(" .. self:targetPath():componentsString() .. ")";
 end
 
 return DivertTarget

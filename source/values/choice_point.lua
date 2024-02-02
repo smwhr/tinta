@@ -18,6 +18,27 @@ function ChoicePoint:setFlags(value)
     self.onceOnly = (value & 16) > 0;
 end
 
+function ChoicePoint:flags(value)
+    local flags = 0
+
+    if self.hasCondition then
+        flags = (flags | 1);
+    end 
+    if self.hasStartContent then
+        flags = (flags | 2);
+    end 
+    if self.hasChoiceOnlyContent then
+        flags = (flags | 4);
+    end 
+    if self.isInvisibleDefault then
+        flags = (flags | 8);
+    end 
+    if self.onceOnly then
+        flags = (flags | 16);
+    end 
+    return flags
+end
+
 function ChoicePoint:choiceTarget()
     return Path:Resolve(self, self._pathOnChoice):container()
 end
@@ -32,8 +53,12 @@ function ChoicePoint:pathOnChoice()
       return self._pathOnChoice
 end
 
+function ChoicePoint:pathStringOnChoice()
+    return Path:of(self):CompactPathString(self:pathOnChoice())
+end
+
 function ChoicePoint:__tostring()
-    return "Choice: -> " .. self:pathOnChoice():componentString()
+    return "Choice: -> " .. self:pathOnChoice():componentsString()
 end
 
 return ChoicePoint

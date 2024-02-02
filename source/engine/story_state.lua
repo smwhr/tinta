@@ -420,7 +420,7 @@ function StoryState:VisitCountForContainer(container)
         if count.exists then return count.result end
     end
 
-    local containerPathStr = Path:of(container):componentString()
+    local containerPathStr = Path:of(container):componentsString()
     local count = self.visitCounts[containerPathStr]
     if count ~= nil then
         return count
@@ -436,7 +436,7 @@ function StoryState:IncrementVisitCountForContainer(container)
         return
     end
 
-    local containerPathStr = Path:of(container):componentString()
+    local containerPathStr = Path:of(container):componentsString()
     local count = self.visitCounts[containerPathStr]
     if count ~= nil then
         self.visitCounts[containerPathStr] = count + 1
@@ -450,7 +450,7 @@ function StoryState:RecordTurnIndexVisitToContainer(container)
         return
     end
 
-    local containerPathStr = Path:of(container):componentString()
+    local containerPathStr = Path:of(container):componentsString()
     self.turnIndices[containerPathStr] = self.currentTurnIndex
 end
 
@@ -464,7 +464,7 @@ function StoryState:TurnsSinceForContainer(container)
         if index.exists then return index.result end
     end
 
-    local containerPathStr = Path:of(container):componentString()
+    local containerPathStr = Path:of(container):componentsString()
     local index = self.turnIndices[containerPathStr]
     if index ~= nil then
         return self.currentTurnIndex - index
@@ -721,12 +721,26 @@ function StoryState:ApplyAnyPatch()
 end
 
 function StoryState:ApplyCountChanges(container, newCount,isVisit)
-    local containerPathStr = Path:of(container):componentString()
+    local containerPathStr = Path:of(container):componentsString()
     if isVisit then
         self.visitCounts[containerPathStr] = newCount
     else
         self.turnIndices[containerPathStr] = newCount
     end
+end
+
+function StoryState:save()
+    local save = {}
+    save["flows"] = {}
+    save["flows"]["DEFAULT_FLOW"] = {
+        ["callstack"] = self.callStack:save(),
+        ["outputStream"] = self.outputStream,
+    }
+    
+end
+
+function StoryState:load(savedState)
+    
 end
 
 return StoryState

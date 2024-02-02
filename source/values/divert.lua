@@ -6,7 +6,7 @@ function Divert:new(pushesToStack, stackPushType, isExternal)
     self.isExternal = isExternal or false
 
     self.isConditional = false
-    self.externalArgs = {}
+    self.externalArgs = 0
     
     self.variableDivertName = nil
 
@@ -32,6 +32,13 @@ end
 function Divert:setTargetPath(value)
     self._targetPath = value
     self._targetPointer = Pointer:Null()
+end
+
+function Divert:targetPathString()
+    if self:targetPath() == nil then
+        return nil
+    end
+    return Path:of(self):CompactPathString(self:targetPath())
 end
 
 function Divert:setTargetPathString(value)
@@ -77,7 +84,7 @@ function Divert:__tostring()
         end
 
         table.insert( sb, " -> " )
-        table.insert( sb, self:targetPath():componentString())
+        table.insert( sb, self:targetPath():componentsString())
         return table.concat(sb)
 
     end

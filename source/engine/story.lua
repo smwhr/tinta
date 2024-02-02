@@ -2,6 +2,7 @@ classic = import('../libs/classic')
 lume = import('../libs/lume')
 inkutils = import('../libs/inkutils')
 PRNG = import('../libs/prng')
+serialization = import('../libs/serialization')
 
 BaseValue = import('../values/base')
 
@@ -18,6 +19,7 @@ Choice = import('../values/choice')
 Container = import('../values/container')
 ControlCommandType = import('../constants/control_commands/types')
 ControlCommandName = import('../constants/control_commands/names')
+ControlCommandValues = import('../constants/control_commands/values')
 ControlCommand = import('../values/control_command')
 DivertTarget = import('../values/divert_target')
 Divert = import('../values/divert')
@@ -44,8 +46,8 @@ StoryState = import('../engine/story_state')
 local Story = classic:extend()
 
 function Story:new(book)
-    self.listDefinitions = JTokenToListDefinitions(book.listDefs)
-    self._mainContentContainer = JTokenToRuntimeObject(book.root)
+    self.listDefinitions = serialization.JTokenToListDefinitions(book.listDefs)
+    self._mainContentContainer = serialization.JTokenToRuntimeObject(book.root)
     self:ResetState()
 
     self.prevContainers = {}
@@ -250,7 +252,7 @@ function Story:Step()
     -- if iStep == 1338 then os.exit() end
     -- if iStep == 9984 then os.exit() end
     -- if iStep == 9987 then os.exit() end
-    print("====="..iStep.."=======")
+    -- print("====="..iStep.."=======")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
     -- print(dump(pointer))
@@ -930,7 +932,7 @@ function Story:NextSequenceShuffleIndex()
 
     local loopIndex = seqCount / numElements
     local iterationIndex = seqCount % numElements + 1
-    local seqPathStr = Path:of(seqContainer):componentString()
+    local seqPathStr = Path:of(seqContainer):componentsString()
     local sequenceHash = lume.reduce(lume.explode(seqPathStr), function(acc, comp) return acc+string.byte(comp) end, 0)
     local randomSeed = sequenceHash + loopIndex + self.state.storySeed
     local random = PRNG(randomSeed)
@@ -997,7 +999,7 @@ function Story:ProcessChoice(choicePoint, threadAtGeneration)
 
     local choice = Choice()
     choice.targetPath = choicePoint:pathOnChoice()
-    choice.sourcePath = Path:of(choicePoint):componentString()
+    choice.sourcePath = Path:of(choicePoint):componentsString()
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
     choice.threadAtGeneration = threadAtGeneration
     choice.tags = lume.reverse(tags)
@@ -1081,220 +1083,8 @@ function Story:DiscardSnapshot()
     self._stateSnapshotAtLastNewline = nil
 end
 
-
-function JTokenToRuntimeObject(token)
-    if 'number' == type(token) then
-        return IntValue(token)
-    end
-        
-    if 'boolean' == type(token) then
-        return BooleanValue(token)
-    end
-    
-    if 'string' == type(token) then
-        if string.sub(token, 1, 1) == "^" then
-            return StringValue(string.sub(token, 2))
-        end
-        if token == "\n" then
-            return StringValue(token)
-        end
-
-        if token == "<>" then
-            return Glue()
-        end
-
-        if ControlCommandName[token] then
-            return ControlCommand(ControlCommandName[token])
-        end
-
-        if (token == "L^") then token = "^" end
-        if NativeFunctionCall:CallExistsWithName(token) then
-            return NativeFunctionCall:CallWithName(token)
-        end
-
-        if token == "->->" then
-            return ControlCommand(ControlCommandType.PopTunnel)
-        end
-        if token == "~ret" then
-            return ControlCommand(ControlCommandType.PopFunction)
-        end
-
-        if token == "void" then
-            return Void()
-        end
-
-    end -- end string interpretation
-
-    if not lume.isarray(token) then
-        local obj = token
-
-        if obj["^->"] then
-            return DivertTarget(Path:FromString(obj["^->"]))
-        end
-
-        if obj["^var"] then
-            local ci = tonumber(obj["ci"])
-            return VariablePointerValue(obj["^var"], ci)
-        end
-
-        local currentDivert = nil
-        local proValue = nil
-        if obj["->"] then
-            currentDivert = Divert(false, PushPopType.Function, false)
-            propValue = obj["->"]
-        elseif obj["f()"] then
-            currentDivert = Divert(true, PushPopType.Function, false)
-            propValue = obj["f()"]
-        elseif obj["->t->"] then
-            currentDivert = Divert(true, PushPopType.Tunnel, false)
-            propValue = obj["->t->"]
-        elseif obj["x()"] then
-            currentDivert = Divert(false, PushPopType.Function, true)
-            propValue = obj["x()"]
-        end
-        if currentDivert then
-            local target = propValue
-            if obj["var"] then
-                currentDivert.variableDivertName = target
-            else
-                currentDivert:setTargetPathString(target)
-            end
-
-            currentDivert.isConditional = obj["c"]
-            if currentDivert.isExternal and obj["exArgs"] then
-                currentDivert.externalArgs = tonumber(obj["exArgs"])
-            end
-            return currentDivert
-        end
-
-        if obj["*"] then
-            local choice = ChoicePoint()
-            choice._pathOnChoice = Path:FromString(obj["*"])
-
-            if obj["flg"] then 
-                choice:setFlags(tonumber(obj["flg"]))
-            end
-            return choice
-        end
-
-        if obj["VAR?"] then
-            return VariableReference(obj["VAR?"]);
-        end
-        if obj["CNT?"] then
-            local readCountVarRef = VariableReference()
-            readCountVarRef:setPathStringForCount(obj["CNT?"])
-            return readCountVarRef
-        end
-
-        if obj["VAR="] then
-            return VariableAssignment(obj["VAR="], not obj["re"], true)
-        end
-        if obj["temp="] then
-            return VariableAssignment(obj["temp="], not obj["re"], false)
-        end
-
-        if obj["#"] then
-            return Tag(obj["#"])
-        end
-
-        if obj["list"] then
-
-            local listContent = obj["list"]
-            local rawList = InkList()
-
-            if obj["origins"] then
-                local namesAsObjs = obj["origins"]
-                rawList:SetInitialOriginNames(namesAsObjs)
-            end
-
-            for key,_ in pairs(listContent) do
-                local nameToVal = listContent[key]
-                local item = ListItem:FromString(key)
-                local val = tonumber(nameToVal)
-                rawList:Add(item, val)
-            end
-
-            return ListValue(rawList)
-            
-        end
-
-    end
-
-    if lume.isarray(token) then
-        return JArrayToContainer(token)
-    end
-
-    if token == nil then
-        return nil
-    end
-    
-    error("101. Failed to convert token to runtime object: " .. tostring(token))
-end
-
-function JArrayToContainer(jArray)
-    local container = Container()
-
-    if(#jArray > 1) then
-        container:AddContent(JArrayToRuntimeObjList(jArray, true))
-    end
-
-    local terminatingObj = jArray[#jArray]
-    if terminatingObj ~= "TERM" then
-        local namedOnlyContent = {}
-        for key, value in pairs(terminatingObj) do
-            if key == "#f" then
-                container:setCountFlags(terminatingObj[key]) 
-            elseif key == "#n" then
-                container.name = tostring(terminatingObj[key])
-            else
-                local namedContentItem = JTokenToRuntimeObject(terminatingObj[key])
-                if namedContentItem:is(Container) then
-                    namedContentItem.name = key
-                end
-                namedOnlyContent[key] = namedContentItem
-            end
-        end
-        container:setNamedOnlyContent(namedOnlyContent)
-    end
-    return container
-end
-
-function JArrayToRuntimeObjList(jArray, skipLast)
-    skipLast = skipLast or false
-    local ObjList = {}
-    for i, jTok in pairs(jArray) do
-        if not (i == #jArray and skipLast) then
-            local runtimeObj = JTokenToRuntimeObject(jTok)
-            if runtimeObj then
-                table.insert(ObjList, runtimeObj)
-            else
-                error("102. Failed to convert token to runtime object" .. tostring(jTok))
-            end
-        end
-    end
-    return ObjList
-end
-
-function JTokenToListDefinitions(obj)
-
-    local defsObj = obj
-    local allDefs = {}
-
-    for key, listDefJson in pairs(defsObj) do
-        local name = tostring(key)
-
-        local items = {}
-        for nameValueKey, nameValue in pairs(listDefJson) do
-            items[nameValueKey] = tonumber(nameValue)
-        end
-        local def = ListDefinition(name, items)
-        table.insert(allDefs, def)
-    end
-    return ListDefinitionOrigin(allDefs)
-end
-
 function Story:JTokenToRuntimeObject(...)
-    return JTokenToRuntimeObject(...)
+    return serialization.JTokenToRuntimeObject(...)
 end
 
 function Story:__tostring()
