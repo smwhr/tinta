@@ -96,3 +96,13 @@ import "../toyboxes/toyboxes"
 local storyDefinition = import("my_story")
 local story = Story(book)
 ```
+
+## Missing features
+
+- Flows
+- Saving and loading (working on it !)
+- External functions
+- Reading/Setting variables
+
+Feel free to contribute to the project if you need any of these features.  
+The lua code is a straight port of the original ink code, so it should be easy to port missing features.
