@@ -39,6 +39,9 @@ VariableReference = import('../values/variable_reference')
 Void = import('../values/void')
 
 VariablesState = import('../engine/variables_state')
+
+CallStackElement = import('../engine/call_stack/element')
+CallStackThread = import('../engine/call_stack/thread')
 CallStack = import('../engine/call_stack')
 PushPopType = import('../constants/push_pop_type')
 StoryState = import('../engine/story_state')
@@ -292,8 +295,7 @@ function Story:Step()
 
     local choicePoint = inkutils.asOrNil(currentContentObj, ChoicePoint)
     if choicePoint then
-        local threadAtGeneration = self.state.callStack:ForkThread()
-        local choice = self:ProcessChoice(choicePoint, threadAtGeneration)
+        local choice = self:ProcessChoice(choicePoint)
         if choice then
             table.insert(self.state:generatedChoices(), choice)
         end
@@ -968,7 +970,7 @@ function Story:PopChoiceStringAndTags(tags)
     return choiceOnlyStrVal.value
 end
 
-function Story:ProcessChoice(choicePoint, threadAtGeneration)
+function Story:ProcessChoice(choicePoint)
     local showChoice = true
     if choicePoint.hasCondition then
         local conditionValue = self.state:PopEvaluationStack()
@@ -1001,8 +1003,8 @@ function Story:ProcessChoice(choicePoint, threadAtGeneration)
     local choice = Choice()
     choice.targetPath = choicePoint:pathOnChoice()
     choice.sourcePath = Path:of(choicePoint):componentsString()
-    choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
-    choice.threadAtGeneration = threadAtGeneration
+    choice.isInvisibleDefault = choicePoint.isInvisibleDefault
+    choice.threadAtGeneration = self.state.callStack:ForkThread()
     choice.tags = lume.reverse(tags)
     choice.text = lume.trim(startText .. choiceOnlyText)
 

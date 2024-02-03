@@ -15,4 +15,8 @@ function Choice:pathStringOnChoice()
     return self.targetPath:componentsString()
 end
 
+function Choice:setPathStringOnChoice(value)
+    self.targetPath = Path:FromString(value)
+end
+
 return Choice

@@ -95,8 +95,7 @@ function JTokenToRuntimeObject(token)
 
         if obj["VAR?"] then
             return VariableReference(obj["VAR?"]);
-        end
-        if obj["CNT?"] then
+        elseif obj["CNT?"] then
             local readCountVarRef = VariableReference()
             readCountVarRef:setPathStringForCount(obj["CNT?"])
             return readCountVarRef
@@ -134,6 +133,10 @@ function JTokenToRuntimeObject(token)
             
         end
 
+        if obj["originalChoicePath"] ~= nil then
+            return JObjectToChoice(obj)
+        end
+
     end
 
     if lume.isarray(token) then
@@ -144,7 +147,7 @@ function JTokenToRuntimeObject(token)
         return nil
     end
     
-    error("101. Failed to convert token to runtime object: " .. tostring(token))
+    error("101. Failed to convert token to runtime object: " .. dump(token))
 end
 
 function JArrayToContainer(jArray)
@@ -209,8 +212,30 @@ function JTokenToListDefinitions(obj)
     return ListDefinitionOrigin(allDefs)
 end
 
-function JObjectToDictionaryRuntimeObjs()
-    error("TODO")
+function JObjectToDictionaryRuntimeObjs(jObject)
+    local returnObject = {}
+    for k,v in pairs(jObject) do
+        returnObject[k] = JTokenToRuntimeObject(v)
+    end
+    return returnObject
+end
+
+function WriteDictionaryRuntimeObjs(dictionnary)
+    local returnObject = {}
+    for k,v in pairs(dictionnary) do
+        returnObject[k] = WriteRuntimeObject(v)
+    end
+    return returnObject
+end
+
+function JObjectToChoice(jObj)
+    local choice = Choice()
+    choice.text = jObj["text"]
+    choice.index = jObj["index"]
+    choice.sourcePath = jObj["originalChoicePath"]
+    choice.originalThreadIndex = jObj["originalThreadIndex"]
+    choice:setPathStringOnChoice(jObj["targetPath"])
+    return choice;
 end
 
 function WriteRuntimeContainer(container, withoutName)
@@ -254,7 +279,6 @@ function WriteRuntimeContainer(container, withoutName)
     return outputTable
 end
 
-
 function WriteListRuntimeObjs(objs)
     local outputTable = {}
     for _, obj in ipairs(objs) do
@@ -278,7 +302,6 @@ function WriteInkList(listVal)
     local innerObject = {}
     for k, v in pairs(rawList._inner) do
         local item = ListItem:fromSerializedKey(k)
-        print(k)
         local itemVal = v
         local itemKey = item:fullName()
 
@@ -471,5 +494,6 @@ return {
     ["WriteListRuntimeObjs"] = WriteListRuntimeObjs,
     ["WriteRuntimeObject"] = WriteRuntimeObject,
     ["WriteIntDictionary"] = WriteIntDictionary,
+    ["WriteDictionaryRuntimeObjs"] = WriteDictionaryRuntimeObjs,
     ["WriteChoice"] = WriteChoice
  }

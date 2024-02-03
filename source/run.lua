@@ -46,23 +46,23 @@ repeat
         end
     until not story:canContinue()
 
-    for _, item in pairs(textBuffer) do
-        io.write(item.text)
-        if #item.tags > 0 then
-            io.write(" # tags: " .. table.concat(item.tags, ", "), '\n')
-        end
-    end
+    -- for _, item in pairs(textBuffer) do
+    --     io.write(item.text)
+    --     if #item.tags > 0 then
+    --         io.write(" # tags: " .. table.concat(item.tags, ", "), '\n')
+    --     end
+    -- end
     
 
     --- SIMPLE SYNC VERSION
-    -- while story:canContinue() do
-    --     local t = story:Continue()
-    --     io.write(t)
-    --     local tags = story:currentTags()
-    --     if  #tags > 0 then
-    --         io.write(" # tags: " .. table.concat(tags, ", "), '\n')
-    --     end
-    -- end
+    while story:canContinue() do
+        local t = story:Continue()
+        io.write(t)
+        local tags = story:currentTags()
+        if  #tags > 0 then
+            io.write(" # tags: " .. table.concat(tags, ", "), '\n')
+        end
+    end
 
 
     io.write("\n")
@@ -82,7 +82,6 @@ repeat
             break
         elseif userInput == "save" then
             save = story.state:save()
-            print(dump(save))
         elseif userInput == "load" then
             story.state:load(save)
         elseif math.type(tonumber(userInput)) ~= nil then
