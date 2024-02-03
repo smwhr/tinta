@@ -2,7 +2,7 @@
 
 This is a lua port of inkle's [ink](https://github.com/inkle/ink), a scripting language for writing interactive narrative.
 
-tinta is fully compatible with the original version, has zero dependency and is known to work with love2d and the playdate sdk.
+tinta is fully compatible with the language (see missing features below for what's missing in the engine), has zero dependency and is known to work with love2d and the playdate sdk.
 
 ## Installation
 
@@ -10,11 +10,11 @@ Clone this repository and add the `tinta/source` directory to your project as `t
 
 ## Writing and compiling Ink
 
-You will need to use a third party compiler (the original inklecate or the inkjs compiler) to compile your ink files to json. 
+tinta only implements a _runtime_ for ink, you will need to use a third party compiler (the original inklecate or the inkjs compiler) to compile your ink files to json. 
 
 ## Running your ink
 
-For performance reasons, tinta is not able to run the compiled json files directly. Instead, you will need to convert the json to lua using the provided `json_to_lua` command line tool.
+For performance reasons, tinta is not able to run the compiled json files directly. Instead, you will need to convert the json to lua using the provided `json_to_lua.sh` command line tool.
 
 ```sh
 json_to_lua.sh my_story.json > my_story.lua
