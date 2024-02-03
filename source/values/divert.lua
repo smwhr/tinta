@@ -64,6 +64,20 @@ function Divert:targetPointer()
     return self._targetPointer:Copy()
 end
 
+function Divert:Equals(obj)
+    local otherDivert = obj
+    if otherDivert:is(Divert) then
+        if self:hasVariableTarget() == otherDivert:hasVariableTarget() then
+            if self:hasVariableTarget() then
+                return self.variableDivertName == otherDivert.variableDivertName
+            else
+                return self:targetPath():Equals(otherDivert:targetPath())
+            end
+        end
+    end
+    return fals
+end
+
 function Divert:__tostring()
     if self:hasVariableTarget() then
         return "Divert(variable: " .. self.variableDivertName .. ")"

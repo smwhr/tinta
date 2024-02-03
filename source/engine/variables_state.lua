@@ -162,6 +162,48 @@ function VariablesState:_(variableName, value)
     error("Not implemented yet")
 end
 
+function VariablesState:save()
+    local returnObject = {}
+    for keyValKey, keyValValue in pairs(self.globalVariables) do
+        local name = keyValKey
+        local val = keyValValue
+
+        local shouldSave = true
+
+        if self.dontSaveDefaultValues then
+            if self.defaultGlobalVariables[name] ~= nil then
+                local defaultVal = self.defaultGlobalVariables[name]
+                if self:RuntimeObjectsEqual(val, defaultVal) then
+                    shouldSave = false
+                end
+            end
+        end
+
+        if shouldSave then
+            returnObject[name] = serialization.WriteRuntimeObject(val)
+        end
+    end
+
+    return returnObject
+end
+
+function VariablesState:RuntimeObjectsEqual(obj1, obj2)
+
+    if obj1["valueType"] ~= obj2["valueType"] then
+        return false
+    end
+
+    if obj1:is(BaseValue) and obj2:is(BaseValue) then
+        if obj1["Equals"] ~= nil and obj2["Equals"] ~= nil then
+            return obj1:Equals(obj2)
+        else
+            return obj1.value == obj2.value
+        end
+    end
+
+    
+end
+
 function VariablesState:__tostring()
     return "VariablesState"
 end

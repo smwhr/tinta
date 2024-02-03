@@ -46,6 +46,7 @@ StoryState = import('../engine/story_state')
 local Story = classic:extend()
 
 function Story:new(book)
+    self.inkVersionCurrent = 21;
     self.listDefinitions = serialization.JTokenToListDefinitions(book.listDefs)
     self._mainContentContainer = serialization.JTokenToRuntimeObject(book.root)
     self:ResetState()
@@ -131,7 +132,7 @@ function Story:ContinueInternal(millisecsLimitAsync)
         outputStreamEndsInNewline = self:ContinueSingleStep();
         if outputStreamEndsInNewline then break end
 
-        print(inkutils.getElapsedTime())
+        -- print(inkutils.getElapsedTime())
         if 
             self._asyncContinueActive 
             and inkutils.getElapsedTime() > millisecsLimitAsync

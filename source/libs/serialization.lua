@@ -209,6 +209,10 @@ function JTokenToListDefinitions(obj)
     return ListDefinitionOrigin(allDefs)
 end
 
+function JObjectToDictionaryRuntimeObjs()
+    error("TODO")
+end
+
 function WriteRuntimeContainer(container, withoutName)
     withoutName = withoutName or false
     local outputTable = {}
@@ -464,5 +468,11 @@ end
 
 return {
     ["JTokenToListDefinitions"] = JTokenToListDefinitions,
-    ["JTokenToRuntimeObject"] = JTokenToRuntimeObject
+    ["JTokenToRuntimeObject"] = JTokenToRuntimeObject,
+    ["JArrayToRuntimeObjList"] = JArrayToRuntimeObjList,
+    ["JObjectToDictionaryRuntimeObjs"] = JObjectToDictionaryRuntimeObjs,
+    ["WriteListRuntimeObjs"] = WriteListRuntimeObjs,
+    ["WriteRuntimeObject"] = WriteRuntimeObject,
+    ["WriteIntDictionary"] = WriteIntDictionary,
+    ["WriteChoice"] = WriteChoice
  }

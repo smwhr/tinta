@@ -54,6 +54,9 @@ end
 local StoryState = classic:extend()
 
 function StoryState:new(story)
+    self.kInkSaveStateVersion = 10;
+    self.kMinCompatibleLoadVersion = 8;
+
     self.storySeed = math.random(100000)
     self.previousRandom = 0
 
@@ -731,16 +734,107 @@ end
 
 function StoryState:save()
     local save = {}
-    save["flows"] = {}
-    save["flows"]["DEFAULT_FLOW"] = {
-        ["callstack"] = self.callStack:save(),
-        ["outputStream"] = self.outputStream,
-    }
+    save["flows"] = {["DEFAULT_FLOW"] = self:saveFlow()}
+        
+    save["variablesState"] = self.variablesState:save()
+    save["evalStack"] = serialization.WriteListRuntimeObjs(self.evaluationStack)
+
+    if not self.divertedPointer:isNull() then
+        save["currentDivertTarget"] = Path:of(self.divertedPointer):componentsString()
+    end
     
+    save["visitCounts"] = serialization.WriteIntDictionary(self.visitCounts)
+    save["turnIndices"] = serialization.WriteIntDictionary(self.turnIndices)
+    save["turnIdx"] = self.currentTurnIndex
+    save["storySeed"] = self.storySeed
+    save["previousRandom"] = self.previousRandom
+    save["inkSaveVersion"] = self.kInkSaveStateVersion
+    save["inkFormatVersion"] = self.story.inkVersionCurrent
+    
+    return save
 end
 
-function StoryState:load(savedState)
-    
+function StoryState:saveFlow()
+    local returnObject = {}
+    returnObject["callstack"] = self.callStack:save()
+    returnObject["outputStream"] = serialization.WriteListRuntimeObjs(self.outputStream)
+
+    local hasChoiceThreads = false
+    local addTo = returnObject
+    for _,c in ipairs(self.state:currentChoices()) do
+        c.originalThreadIndex = c.threadAtGeneration.threadIndex
+        if self.callStack:ThreadWithIndex(c.originalThreadIndex) == nil then
+            if not hasChoiceThreads then
+                hasChoiceThreads = true
+                addTo = {}
+            end
+            addTo[c.originalThreadIndex] = c.threadAtGeneration:save()
+        end
+    end
+    if hasChoiceThreads then
+        returnObject["choiceThreads"] = addTo
+    end
+    local currentChoices = {}
+    for _,c in ipairs(self.state:currentChoices()) do
+        table.insert(currentChoices, serialization.WriteChoice(c))
+    end
+    returnObject["currentChoices"] = currentChoices
+
+    return returnObject
+end
+
+function StoryState:load(jObject)
+    local jSaveVersion = jObject["inkSaveVersion"]
+    if jSaveVersion == nil or jSaveVersion < self.kMinCompatibleLoadVersion then
+        error("Ink save format isn't compatible with the current version")
+    end
+
+    local flow = jObject["flows"]["DEFAULT_FLOW"]
+
+    self.callStack:load(flow["callstack"], self.story)
+    self.outputStream = serialization.JArrayToRuntimeObjList(flow["outputStream"])
+    self._currentChoices = serialization.JArrayToRuntimeObjList(flow["currentChoices"])
+    local jChoiceThreadsObj = flow["choiceThreads"]
+    if jChoiceThreadsObj ~= nil then
+        self:LoadChoiceThreads(jChoiceThreadsObj, self.story)
+    else
+        self.outputStream = {}
+        self._currentChoices = {}
+    end
+    self:OutputStreamDirty()
+    self._aliveFlowNamesDirty = true
+
+    self.variablesState:load(jObject["variablesState"])
+    self.variablesState.callStack = self.callStack
+
+    self.evaluationStack = serialization.JArrayToRuntimeObjList(jObject["evalStack"])
+
+    local currentDivertTargetPath = jObject["currentDivertTarget"]
+    if currentDivertTargetPath ~= nil then
+        local divertPath = Path:FromString(currentDivertTargetPath)
+        self.divertedPointer = self.story:PointerAtPath(divertPath)
+    end
+
+    self.visitCounts = jObject["visitCounts"]
+    self.turnIndices = jObject["turnIndices"]
+    self.currentTurnIndex = jObject["turnIdx"]
+    self.storySeed = jObject["storySeed"]
+    self.previousRandom = jObject["previousRandom"]
+end
+
+-- LoadFlowChoiceThreads
+function StoryState:LoadChoiceThreads(jChoiceThreads, story)
+    for _,choice in ipairs(self.state:currentChoices()) do
+        local foundActiveThread = self.callStack:ThreadWithIndex(
+            choice.originalThreadIndex
+        )
+        if foundActiveThread ~= nil then
+            choice.threadAtGeneration = foundActiveThread:Copy()
+        else
+            local jSavedChoiceThread = jChoiceThreads[choice.originalThreadIndex]
+            choice.threadAtGeneration = CallStackThread:FromSave(jSavedChoiceThread, story)
+        end
+    end
 end
 
 return StoryState
