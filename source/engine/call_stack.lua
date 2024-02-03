@@ -1,3 +1,30 @@
+local CallStackElement = classic:extend()
+
+function CallStackElement:new(type, pointer, inExpressionEvaluation)
+    self.currentPointer = pointer:Copy()
+    self.inExpressionEvaluation = inExpressionEvaluation or false
+    self.temporaryVariables = {}
+    self.type = type
+    self.evaluationStackHeightWhenPushed = 0
+    self.functionStartInOutputStream = 0
+end
+
+function CallStackElement:Copy()
+    local copy = CallStackElement(
+        self.type, 
+        self.currentPointer, 
+        self.inExpressionEvaluation
+    )
+    copy.temporaryVariables = lume.clone(self.temporaryVariables)
+    copy.evaluationStackHeightWhenPushed = self.evaluationStackHeightWhenPushed
+    copy.functionStartInOutputStream = self.functionStartInOutputStream
+    return copy
+end
+
+function CallStackElement:__tostring()
+    return "CallStackElement"
+end
+
 local CallStackThread = classic:extend()
 
 function CallStackThread:new()
@@ -11,6 +38,8 @@ function CallStackThread:FromSave(jThreadObj, storyContext)
     newThread.threadIndex = jThreadObj["threadIndex"]
 
     local jThreadCallstack = jThreadObj["callstack"]
+
+    print(dump(jThreadObj))
 
     for _,jElTok in ipairs(jThreadCallstack) do
         local let jElementObj = jElTok
@@ -70,7 +99,7 @@ function CallStackThread:save()
     local returnObject = {}
     local callstack = {}
 
-    for _, el in ipairs(self.callstack) do
+    for _, el in ipairs(self.callStack) do
         local inner = {}
 
         if not el.currentPointer:isNull() then
@@ -88,7 +117,7 @@ function CallStackThread:save()
         table.insert(callstack, inner)
     end
 
-    returnObject["callStack"] = callstack
+    returnObject["callstack"] = callstack
 
     returnObject["threadIndex"] = self.threadIndex
 
@@ -102,33 +131,6 @@ end
 
 function CallStackThread:__tostring()
     return "CallStackThread"
-end
-
-local CallStackElement = classic:extend()
-
-function CallStackElement:new(type, pointer, inExpressionEvaluation)
-    self.currentPointer = pointer:Copy()
-    self.inExpressionEvaluation = inExpressionEvaluation or false
-    self.temporaryVariables = {}
-    self.type = type
-    self.evaluationStackHeightWhenPushed = 0
-    self.functionStartInOutputStream = 0
-end
-
-function CallStackElement:Copy()
-    local copy = CallStackElement(
-        self.type, 
-        self.currentPointer, 
-        self.inExpressionEvaluation
-    )
-    copy.temporaryVariables = lume.clone(self.temporaryVariables)
-    copy.evaluationStackHeightWhenPushed = self.evaluationStackHeightWhenPushed
-    copy.functionStartInOutputStream = self.functionStartInOutputStream
-    return copy
-end
-
-function CallStackElement:__tostring()
-    return "CallStackElement"
 end
 
 local CallStack = classic:extend()
@@ -352,7 +354,7 @@ function CallStack:load(jObject, storyContext)
 
     for _,jThreadTok in ipairs(jThreads) do
         local jThreadObj = jThreadTok
-        local thread = CallStackThread:load(jThreadObj, storyContext)
+        local thread = CallStackThread:FromSave(jThreadObj, storyContext)
         table.insert(self.threads, thread)
     end
 

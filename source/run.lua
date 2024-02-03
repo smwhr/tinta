@@ -20,7 +20,7 @@ end
 -- local storyDefinition = import("tests/logic_in_choices")
 local storyDefinition = load_storyDefinition(arg[1])
 
-
+local save = {}
 
 Story = import('engine/story')
 story = Story(storyDefinition)
@@ -32,6 +32,9 @@ repeat
     --- ASYNC VERSION
     local textBuffer = {}
     repeat
+        if not story:canContinue() then
+            break
+        end
         story:ContinueAsync(300)
         if story:asyncContinueComplete() then
             local currentText = story:currentText()
@@ -73,8 +76,21 @@ repeat
     end
     if #choices > 0 then
         io.write("?> ")
-        choiceIndex = io.read()
-        story:ChooseChoiceIndex(choiceIndex)
+        userInput = io.read()
+        if userInput == "quit" or userInput == "q"  then
+            print("Quitting...")
+            break
+        elseif userInput == "save" then
+            save = story.state:save()
+            print(dump(save))
+        elseif userInput == "load" then
+            story.state:load(save)
+        elseif math.type(tonumber(userInput)) ~= nil then
+            story:ChooseChoiceIndex(userInput)
+
+        else
+            print("Should be a choice number, save or load")
+        end
     end
 until #choices == 0
 print("DONE.\n")

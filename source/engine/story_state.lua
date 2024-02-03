@@ -761,7 +761,7 @@ function StoryState:saveFlow()
 
     local hasChoiceThreads = false
     local addTo = returnObject
-    for _,c in ipairs(self.state:currentChoices()) do
+    for _,c in ipairs(self:currentChoices()) do
         c.originalThreadIndex = c.threadAtGeneration.threadIndex
         if self.callStack:ThreadWithIndex(c.originalThreadIndex) == nil then
             if not hasChoiceThreads then
@@ -775,7 +775,7 @@ function StoryState:saveFlow()
         returnObject["choiceThreads"] = addTo
     end
     local currentChoices = {}
-    for _,c in ipairs(self.state:currentChoices()) do
+    for _,c in ipairs(self:currentChoices()) do
         table.insert(currentChoices, serialization.WriteChoice(c))
     end
     returnObject["currentChoices"] = currentChoices
@@ -824,7 +824,7 @@ end
 
 -- LoadFlowChoiceThreads
 function StoryState:LoadChoiceThreads(jChoiceThreads, story)
-    for _,choice in ipairs(self.state:currentChoices()) do
+    for _,choice in ipairs(self:currentChoices()) do
         local foundActiveThread = self.callStack:ThreadWithIndex(
             choice.originalThreadIndex
         )

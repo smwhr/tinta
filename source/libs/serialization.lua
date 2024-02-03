@@ -265,7 +265,7 @@ end
 
 function WriteIntDictionary(map)
     local outputTable = {}
-    for k, v in pairs(t) do
+    for k, v in pairs(map) do
         outputTable[k] = v
     end
     return outputTable
@@ -276,15 +276,12 @@ function WriteInkList(listVal)
     local outputObject = {}
 
     local innerObject = {}
-    for k, v in pairs(rawList) do
+    for k, v in pairs(rawList._inner) do
         local item = ListItem:fromSerializedKey(k)
+        print(k)
         local itemVal = v
+        local itemKey = item:fullName()
 
-        local orig = "?"
-        if item.originName then
-            orig = item.originName
-        end
-        local itemKey = orig .. "." .. item.itemName
         innerObject[itemKey] = itemVal
     end
     outputObject["list"] = innerObject
