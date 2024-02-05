@@ -23,7 +23,8 @@ function CallStackThread:FromSave(jThreadObj, storyContext)
         if currentContainerPathStrToken ~= nil then
             currentContainerPathStr = currentContainerPathStrToken
             threadPointerResult = storyContext:ContentAtPath(Path:FromString(currentContainerPathStr))
-            pointer.container = threadPointerResult.container
+
+            pointer.container = threadPointerResult:container()
             pointer.index = jElementObj["idx"]
 
             if threadPointerResult.obj == nil then

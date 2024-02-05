@@ -216,8 +216,6 @@ function CallStack:load(jObject, storyContext)
     self.threads = {}
     local jThreads = jObject["threads"]
 
-    print(dump(jThreads))
-
     for _,jThreadTok in ipairs(jThreads) do
         local jThreadObj = jThreadTok
         local thread = CallStackThread:FromSave(jThreadObj, storyContext)

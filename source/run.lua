@@ -30,39 +30,39 @@ local choices = {}
 repeat
 
     --- ASYNC VERSION
-    -- local textBuffer = {}
-    -- repeat
-    --     if not story:canContinue() then
-    --         break
-    --     end
-    --     story:ContinueAsync(300)
-    --     if story:asyncContinueComplete() then
-    --         local currentText = story:currentText()
-    --         local currentTags = story:currentTags()
-    --         table.insert(textBuffer,{
-    --             text = currentText,
-    --             tags = currentTags
-    --         })
-    --     end
-    -- until not story:canContinue()
+    local textBuffer = {}
+    repeat
+        if not story:canContinue() then
+            break
+        end
+        story:ContinueAsync(300)
+        if story:asyncContinueComplete() then
+            local currentText = story:currentText()
+            local currentTags = story:currentTags()
+            table.insert(textBuffer,{
+                text = currentText,
+                tags = currentTags
+            })
+        end
+    until not story:canContinue()
 
-    -- for _, item in pairs(textBuffer) do
-    --     io.write(item.text)
-    --     if #item.tags > 0 then
-    --         io.write(" # tags: " .. table.concat(item.tags, ", "), '\n')
-    --     end
-    -- end
+    for _, item in pairs(textBuffer) do
+        io.write(item.text)
+        if #item.tags > 0 then
+            io.write(" # tags: " .. table.concat(item.tags, ", "), '\n')
+        end
+    end
     
 
     --- SIMPLE SYNC VERSION
-    while story:canContinue() do
-        local t = story:Continue()
-        io.write(t)
-        local tags = story:currentTags()
-        if  #tags > 0 then
-            io.write(" # tags: " .. table.concat(tags, ", "), '\n')
-        end
-    end
+    -- while story:canContinue() do
+    --     local t = story:Continue()
+    --     io.write(t)
+    --     local tags = story:currentTags()
+    --     if  #tags > 0 then
+    --         io.write(" # tags: " .. table.concat(tags, ", "), '\n')
+    --     end
+    -- end
 
 
     io.write("\n")
