@@ -158,8 +158,37 @@ end
 
 -- Can't declare a 
 function VariablesState:_(variableName, value)
-    --@TODO
-    error("Not implemented yet")
+    if value == nil then
+    
+        local varContents = nil
+        if self.patch ~= nil then
+            varContents = self.patch:TryGetGlobal(variableName, nil)
+            if varContents.exists then
+                return varContents.result.value
+            end
+        end
+        varContents = self.globalVariables[variableName]
+        if varContents == nil then
+            varContents = self.defaultGlobalVariables[variableName]
+        end
+
+        if varContents ~= nil then
+            return varContents.value
+        else
+            return nil
+        end
+    else
+        if self.defaultGlobalVariables[variableName]  == nil then
+            error("Cannot assign to a variable (" .. variableName .. ") that hasn't been declared in the story")
+        end
+        
+        local val = CreateValue(value)
+        if val == nil then
+            error("Invalid value passed to VariableState: " .. dump(value))
+        end
+
+        self:SetGlobal(variableName, val)
+    end
 end
 
 function VariablesState:save()

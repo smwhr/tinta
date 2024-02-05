@@ -77,6 +77,8 @@ Useful commands when prompted for input are:
 
 - `save` to save the current state of the story
 - `load` to load the last saved state
+- `-> your_knot` to jump to a specific knot
+- `quit` or `q` to quit the story
 
 
 ## Toybox
@@ -97,12 +99,10 @@ local storyDefinition = import("my_story")
 local story = Story(book)
 ```
 
-## Missing features
+## Notably missing features
 
 - Flows
-- Saving and loading (working on it !)
-- External functions
-- Reading/Setting variables
+- External functions and calling functions from the outside (ChoosePathString _is_ available)
 
 Feel free to contribute to the project if you need any of these features.  
 The lua code is a straight port of the original ink code, so it should be easy to port missing features.
