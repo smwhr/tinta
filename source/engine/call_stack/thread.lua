@@ -54,6 +54,7 @@ function CallStackThread:FromSave(jThreadObj, storyContext)
         local prevPath = Path:FromString(prevContentObjPath)
         newThread.previousPointer = storyContext:PointerAtPath(prevPath)
     end
+    return newThread
 end
 
 function CallStackThread:Copy()
