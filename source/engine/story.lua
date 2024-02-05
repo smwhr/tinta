@@ -891,6 +891,31 @@ function Story:PerformLogicAndFlowControl(contentObj)
     return false
 end
 
+function Story:ChoosePathString(path, resetCallstack, args)
+    if resetCallstack == nil then
+        resetCallstack = true
+    end
+    
+    self:IfAsyncWeCant("call ChoosePathString right now")
+
+    if resetCallstack then
+        self:ResetCallstack()
+    else
+        if self.state.callStack:currentElement().type == PushPopType.Function then
+         error("Story was running a function when you called ChoosePathString - this is almost certainly not not what you want!")
+        end
+    end
+
+    self.state:PassArgumentsToEvaluationStack(args)
+    self:ChoosePath(Path:FromString(path))
+
+end
+
+function Story:ResetCallstack()
+    self:IfAsyncWeCant("ResetCallstack")
+    self.state:ForceEnd()
+end
+
 function Story:ContentAtPath(path)
     return self:mainContentContainer():ContentAtPath(path)
 end

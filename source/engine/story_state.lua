@@ -177,6 +177,22 @@ function StoryState:ResetOutput() --add parameter when needed
     self:OutputStreamDirty()
 end
 
+function StoryState:PassArgumentsToEvaluationStack(args)
+    if args ~= nil then
+        for _,a in ipairs(args) do
+            if not (
+                type(a) == "number" or
+                type(a) == "string" or 
+                type(a) == "boolean"
+            ) then
+                error("ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be number, string, bool. Argument was " .. dump(a))
+            end
+    
+            self:PushEvaluationStack(CreateValue(a))
+        end
+    end
+end
+
 function StoryState:OutputStreamDirty()
     self.outputStreamTextDirty = true
     self.outputStreamTagsDirty = true

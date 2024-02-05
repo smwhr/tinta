@@ -83,6 +83,9 @@ repeat
         then
             print("Quitting...")
             break
+        elseif userInput:sub(1,2) == "->" then
+            local path = lume.trim(userInput:sub(3))
+            story:ChoosePathString(path)
         elseif userInput == "save" then
             save = story.state:save()
         elseif userInput == "load" then
