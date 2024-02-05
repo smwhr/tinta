@@ -187,6 +187,20 @@ function VariablesState:save()
     return returnObject
 end
 
+-- SetJsonToken
+function VariablesState:load(jToken)
+    self.globalVariables = {}
+    for varValKey,varValValue in pairs(self.defaultGlobalVariables) do
+        local loadedToken = jToken[varValKey]
+        if loadedToken ~= nil then
+            local tokenInkObject = serialization.JTokenToRuntimeObject(loadedToken)
+            self.globalVariables[varValKey] = tokenInkObject
+        else
+            self.globalVariables[varValKey] = varValValue
+        end
+    end
+end
+
 function VariablesState:RuntimeObjectsEqual(obj1, obj2)
 
     if obj1["valueType"] ~= obj2["valueType"] then

@@ -30,21 +30,21 @@ local choices = {}
 repeat
 
     --- ASYNC VERSION
-    local textBuffer = {}
-    repeat
-        if not story:canContinue() then
-            break
-        end
-        story:ContinueAsync(300)
-        if story:asyncContinueComplete() then
-            local currentText = story:currentText()
-            local currentTags = story:currentTags()
-            table.insert(textBuffer,{
-                text = currentText,
-                tags = currentTags
-            })
-        end
-    until not story:canContinue()
+    -- local textBuffer = {}
+    -- repeat
+    --     if not story:canContinue() then
+    --         break
+    --     end
+    --     story:ContinueAsync(300)
+    --     if story:asyncContinueComplete() then
+    --         local currentText = story:currentText()
+    --         local currentTags = story:currentTags()
+    --         table.insert(textBuffer,{
+    --             text = currentText,
+    --             tags = currentTags
+    --         })
+    --     end
+    -- until not story:canContinue()
 
     -- for _, item in pairs(textBuffer) do
     --     io.write(item.text)
@@ -77,7 +77,10 @@ repeat
     if #choices > 0 then
         io.write("?> ")
         userInput = io.read()
-        if userInput == "quit" or userInput == "q"  then
+        if userInput == "quit" 
+        or userInput == "q"  
+        or userInput == nil -- ctrl+D
+        then
             print("Quitting...")
             break
         elseif userInput == "save" then
@@ -86,7 +89,6 @@ repeat
             story.state:load(save)
         elseif math.type(tonumber(userInput)) ~= nil then
             story:ChooseChoiceIndex(userInput)
-
         else
             print("Should be a choice number, save or load")
         end

@@ -831,7 +831,10 @@ function StoryState:LoadChoiceThreads(jChoiceThreads, story)
         if foundActiveThread ~= nil then
             choice.threadAtGeneration = foundActiveThread:Copy()
         else
-            local jSavedChoiceThread = jChoiceThreads[choice.originalThreadIndex + 1]
+            if jChoiceThreads[choice.originalThreadIndex] == nil then
+                error("Could not find " .. choice.originalThreadIndex .. " in " .. dump(jChoiceThreads))
+            end
+            local jSavedChoiceThread = jChoiceThreads[choice.originalThreadIndex]
             choice.threadAtGeneration = CallStackThread:FromSave(jSavedChoiceThread, story)
         end
     end

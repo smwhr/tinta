@@ -194,7 +194,6 @@ end
 function CallStack:setCurrentThread(thread)
     self.threads = {}
     table.insert(self.threads, thread)
-    self.threadCounter = #thread
 end
 
 function CallStack:canPop()
