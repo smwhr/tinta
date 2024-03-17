@@ -44,6 +44,8 @@ CallStackElement = import('../engine/call_stack/element')
 CallStackThread = import('../engine/call_stack/thread')
 CallStack = import('../engine/call_stack')
 PushPopType = import('../constants/push_pop_type')
+Flow = import("../engine/flow")
+StatePatch = import('../engine/state_patch')
 StoryState = import('../engine/story_state')
 
 local Story = classic:extend()

@@ -124,6 +124,7 @@ function NativeFunctionCall:CoerceValuesToSingleType(parametersIn)
                 table.insert(parametersOut, val)
             elseif val.valueType == "Int" then
                 local intVal = tonumber(val.value)
+                assert(specialCaseList)
                 local list = specialCaseList.value:originOfMaxItem()
                 local item = list:TryGetItemWithValue(intVal, ListItem:Null())
                 if item.exists then
@@ -242,7 +243,7 @@ function GenerateNativeFunctionsIfNecessary()
         AddIntBinaryOp(NativeFunctionCallName.Max, function(x, y) return math.max(x, y) end)
         AddIntBinaryOp(NativeFunctionCallName.Min, function(x, y) return math.min(x, y) end)
 
-        AddIntBinaryOp(NativeFunctionCallName.Pow, function(x, y) return math.pow(x, y) end)
+        AddIntBinaryOp(NativeFunctionCallName.Pow, function(x, y) return (x ^ y) end)
         AddIntUnaryOp(NativeFunctionCallName.Floor, Identity)
         AddIntUnaryOp(NativeFunctionCallName.Ceiling, Identity)
         AddIntUnaryOp(NativeFunctionCallName.Int, Identity)
@@ -271,7 +272,7 @@ function GenerateNativeFunctionsIfNecessary()
         AddFloatBinaryOp(NativeFunctionCallName.Max, function(x, y) return math.max(x, y) end)
         AddFloatBinaryOp(NativeFunctionCallName.Min, function(x, y) return math.min(x, y) end)
 
-        AddFloatBinaryOp(NativeFunctionCallName.Pow, function(x, y) return math.pow(x, y) end)
+        AddFloatBinaryOp(NativeFunctionCallName.Pow, function(x, y) return (x ^ y) end)
         AddFloatUnaryOp(NativeFunctionCallName.Floor, function(x) return math.floor(x) end)
         AddFloatUnaryOp(NativeFunctionCallName.Ceiling, function(x) return math.ceil(x) end);
         AddFloatUnaryOp(NativeFunctionCallName.Int, function(x) return math.floor(x) end)
