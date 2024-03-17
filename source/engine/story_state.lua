@@ -16,19 +16,20 @@ function StoryState:new(story)
     self:OutputStreamDirty()
     self._aliveFlowNamesDirty = true
 
-    self.variablesState = VariablesState(self.callStack, story.listDefinitions)
     self.evaluationStack = {}
+
+    self.variablesState = VariablesState(self.callStack, story.listDefinitions)
+    
     self.visitCounts = {}
     self.turnIndices = {}
+
     self.currentTurnIndex = -1 -- actual -1
 
     self._patch = nil
     self.didSafeExit = false
-    self.outputStream = {}
+
     self.outputStreamTextDirty = true
     self.outputStreamTagsDirty = true
-
-    self._currentChoices = {}
 
     self.currentErrors = {}
     self.currentWarnings = {}
@@ -51,8 +52,8 @@ function StoryState:currentText()
     if self.outputStreamTextDirty then
         local sb = {}
         local inTag = false
-        for i = 1, #self.outputStream do
-            local outputObj = self.outputStream[i]
+        for i = 1, #self:outputStream() do
+            local outputObj = self:outputStream()[i]
             if (outputObj:is(StringValue)) then
                 if not inTag then
                     table.insert(sb, outputObj.value)
@@ -78,7 +79,7 @@ function StoryState:currentTags()
         self._currentTags = {}
         local inTag = false
         local sb = {}
-        for _, outputObj in pairs(self.outputStream) do
+        for _, outputObj in pairs(self:outputStream()) do
             if outputObj:is(ControlCommand) then
                 local controlCommand = outputObj
                 if controlCommand.value == ControlCommandType.BeginTag then
@@ -145,8 +146,13 @@ function StoryState:setPreviousPointer(pointer)
     self.callStack:currentThread().previousPointer = pointer:Copy()
 end
 
-function StoryState:ResetOutput() --add parameter when needed
-    self.outputStream = {}
+function StoryState:ResetOutput(objs) --add parameter when needed
+    self._currentFlow.outputStream = {}
+    if objs ~= nil then
+        for index, value in ipairs(t) do
+            table.insert(self._currentFlow.outputStream, value)
+        end
+    end
     self:OutputStreamDirty()
 end
 
@@ -190,7 +196,7 @@ function StoryState:PushToOutputStream(obj)
 end
 
 function StoryState:PopFromOutputStream(count)
-    self.outputStream = lume.slice(self.outputStream, 1, #self.outputStream - count)
+    self._currentFlow.outputStream = lume.slice(self:outputStream(), 1, #self:outputStream() - count)
     self:OutputStreamDirty()
 end
 
@@ -210,8 +216,8 @@ function StoryState:PushToOutputStreamIndividual(obj)
         end
 
         local glueTrimIndex = 0
-        for i = #self.outputStream, 1, -1 do
-            local o = self.outputStream[i]
+        for i = #self:outputStream(), 1, -1 do
+            local o = self:outputStream()[i]
             if o:is(Glue) then
                 glueTrimIndex = i;
                 break
@@ -257,14 +263,14 @@ function StoryState:PushToOutputStreamIndividual(obj)
     end
 
     if includeInOutput then
-        table.insert(self.outputStream, obj)
+        table.insert(self:outputStream(), obj)
         self:OutputStreamDirty()
     end
 end
 
 function StoryState:inStringEvaluation()
-    for i = #self.outputStream, 1, -1 do
-        local cmd = self.outputStream[i]
+    for i = #self:outputStream(), 1, -1 do
+        local cmd = self:outputStream()[i]
         if cmd:is(ControlCommand) and cmd.value == ControlCommandType.BeginString then
             return true
         end
@@ -273,9 +279,9 @@ function StoryState:inStringEvaluation()
 end
 
 function StoryState:outputStreamEndsInNewline()
-    if #self.outputStream > 0 then
-        for i = #self.outputStream, 1, -1 do
-            local obj = self.outputStream[i]
+    if #self:outputStream() > 0 then
+        for i = #self:outputStream(), 1, -1 do
+            local obj = self:outputStream()[i]
             if obj:is(ControlCommand) then break end
             if obj:is(StringValue) then
                 if obj.isNewline then return true
@@ -287,7 +293,7 @@ function StoryState:outputStreamEndsInNewline()
 end
 
 function StoryState:outputStreamContainsContent()
-    for _, c in ipairs(self.outputStream) do
+    for _, c in ipairs(self:outputStream()) do
         if c:is(StringValue) then return true end
     end
     return false
@@ -296,10 +302,10 @@ end
 function StoryState:TrimNewlinesFromOutputStream()
     local removeWhitespaceFrom = 0
 
-    local i = #self.outputStream
+    local i = #self:outputStream()
 
     while i >= 1 do
-        local obj = self.outputStream[i]
+        local obj = self:outputStream()[i]
         if obj:is(ControlCommand) or (
                 obj:is(StringValue) and obj:isNonWhitespace()
             ) then
@@ -312,10 +318,10 @@ function StoryState:TrimNewlinesFromOutputStream()
 
     if removeWhitespaceFrom >= 1 then
         i = removeWhitespaceFrom
-        while i <= #self.outputStream do
-            local obj = self.outputStream[i]
+        while i <= #self:outputStream() do
+            local obj = self:outputStream()[i]
             if obj:is(StringValue) then
-                table.remove(self.outputStream, i)
+                table.remove(self:outputStream(), i)
             else
                 i = i + 1
             end
@@ -331,12 +337,12 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
         functionStartPoint = 1
     end
 
-    for i = #self.outputStream, functionStartPoint + 1, -1 do
-        local obj = self.outputStream[i]
+    for i = #self:outputStream(), functionStartPoint + 1, -1 do
+        local obj = self:outputStream()[i]
         if obj:is(StringValue) then
             if obj:is(ControlCommand) then break end
             if obj.isNewline or obj.isInlineWhiteSpace then
-                table.remove(self.outputStream, i)
+                table.remove(self:outputStream(), i)
                 self:OutputStreamDirty()
             else
                 break
@@ -354,7 +360,7 @@ function StoryState:PopCallStack()
 end
 
 function StoryState:SetChosenPath(path, incrementingTurnIndex)
-    self._currentChoices = {}
+    self._currentFlow._currentChoices = {}
     local newPointer = self.story:PointerAtPath(path)
     if not newPointer:isNull() and newPointer.index == 0 then newPointer.index = 1 end
     self:setCurrentPointer(newPointer)
@@ -365,10 +371,10 @@ function StoryState:SetChosenPath(path, incrementingTurnIndex)
 end
 
 function StoryState:RemoveExistingGlue()
-    for i = #self.outputStream, 1, -1 do
-        local obj = self.outputStream[i]
+    for i = #self:outputStream(), 1, -1 do
+        local obj = self:outputStream()[i]
         if obj:is(Glue) then
-            table.remove(self.outputStream, i)
+            table.remove(self:outputStream(), i)
         elseif obj:is(ControlCommand) then
             break
         end
@@ -389,16 +395,20 @@ function StoryState:hasWarning()
     return #self.currentWarnings > 0
 end
 
+function StoryState:outputStream()
+    return self._currentFlow.outputStream
+end
+
 function StoryState:currentChoices()
     if self:canContinue() then
         return {}
     else
-        return self._currentChoices
+        return self._currentFlow._currentChoices
     end
 end
 
 function StoryState:generatedChoices()
-    return self._currentChoices
+    return self._currentFlow._currentChoices
 end
 
 function StoryState:VisitCountForContainer(container)
@@ -509,7 +519,7 @@ end
 function StoryState:ForceEnd()
     self.callStack:Reset()
 
-    self._currentChoices = {}
+    self._currentFlow._currentChoices = {}
 
     self:setCurrentPointer(Pointer:Null());
     self:setPreviousPointer(Pointer:Null());
@@ -812,35 +822,6 @@ function StoryState:save()
     save["inkFormatVersion"] = self.story.inkVersionCurrent
 
     return save
-end
-
-function StoryState:saveFlow()
-    local returnObject = {}
-    returnObject["callstack"] = self.callStack:save()
-    returnObject["outputStream"] = serialization.WriteListRuntimeObjs(self.outputStream)
-
-    local hasChoiceThreads = false
-    local addTo = returnObject
-    for _, c in ipairs(self._currentChoices) do
-        c.originalThreadIndex = c.threadAtGeneration.threadIndex
-        if self.callStack:ThreadWithIndex(c.originalThreadIndex) == nil then
-            if not hasChoiceThreads then
-                hasChoiceThreads = true
-                addTo = {}
-            end
-            addTo[c.originalThreadIndex] = c.threadAtGeneration:save()
-        end
-    end
-    if hasChoiceThreads then
-        returnObject["choiceThreads"] = addTo
-    end
-    local currentChoices = {}
-    for _, c in ipairs(self._currentChoices) do
-        table.insert(currentChoices, serialization.WriteChoice(c))
-    end
-    returnObject["currentChoices"] = currentChoices
-
-    return returnObject
 end
 
 function StoryState:load(jObject)
