@@ -522,8 +522,6 @@ function StoryState:PushEvaluationStack(obj)
                 end
             end
         end
-
-        -- print(dump(obj.value._inner), dump(obj.value.origins))
     end
     table.insert(self.evaluationStack, obj)
 end

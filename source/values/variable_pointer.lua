@@ -4,7 +4,8 @@ function VariablePointer:new(varName, contextIndex)
 
     VariablePointer.super.new(self, varName)
 
-    self.contextIndex = contextIndex or -1
+    self.variableName = varName
+    self.contextIndex = contextIndex or 0
     self.valueType = "VariablePointer"
 end
 

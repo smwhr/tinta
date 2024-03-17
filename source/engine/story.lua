@@ -203,7 +203,6 @@ function Story:ContinueSingleStep()
             elseif change == "NewlineRemoved" then
                 self:DiscardSnapshot()
             end
-            -- print("change is", change)
         end
         
         if self.state:outputStreamEndsInNewline() then
@@ -248,18 +247,9 @@ function Story:CalculateNewlineOutputStateChange(prevText, currText, prevTagCoun
     return "NoChange"
 end
 
-local iStep = 0
 function Story:Step()
-    iStep = iStep + 1
-    -- if iStep == 768 then os.exit() end
-    -- if iStep == 1336 then os.exit() end
-    -- if iStep == 1338 then os.exit() end
-    -- if iStep == 9984 then os.exit() end
-    -- if iStep == 9987 then os.exit() end
-    -- print("====="..iStep.."=======")
     local shouldAddToStream = true
     local pointer = self.state:currentPointer():Copy()
-    -- print(dump(pointer))
 
     if pointer:isNull() then
         return
@@ -280,11 +270,9 @@ function Story:Step()
     self.state:setCurrentPointer(pointer:Copy())
 
     local currentContentObj = pointer:Resolve()
-    -- print(currentContentObj)
 
     local isLogicOrFlowControl = self:PerformLogicAndFlowControl(currentContentObj)
 
-    -- print(dump(self.state:currentPointer()))
     if self.state:currentPointer():isNull() then
         return
     end
@@ -372,7 +360,6 @@ function Story:NextContent()
         end
 
     end
-    -- print(dump(self.state:currentPointer()))
 end
 
 function Story:VisitChangedContainersDueToDivert()
@@ -876,13 +863,6 @@ function Story:PerformLogicAndFlowControl(contentObj)
         local func = contentObj
         local funcParams = self.state:PopEvaluationStack(func:numberOfParameters())
         local result = func:Call(funcParams)
-        -- print(
-        --     funcParams[1],
-        --     func.name,
-        --     funcParams[2],
-        --     "gives",
-        --     dump(result)
-        -- )
         self.state:PushEvaluationStack(result)
         return true
     end
@@ -1087,10 +1067,8 @@ end
 -- SnapshotManagement
 
 function Story:StateSnapshot()
-    -- print("saving", self.state:currentPointer().index)
     self._stateSnapshotAtLastNewline = self.state
     self.state = self.state:CopyAndStartPatching()
-    -- print("patched", self.state:currentPointer().index)
 end
 
 function Story:RestoreStateSnapshot()

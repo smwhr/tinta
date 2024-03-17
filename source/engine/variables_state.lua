@@ -97,9 +97,9 @@ function VariablesState:Assign(varAss, value)
     end
 
     if varAss.isNewDeclaration then
-        if value:is(VariablePointerValue) then
-            local varPointer = value
-            local fullyResolvedVariablePointer = self:ResolvedVariablePointer(varPointer)
+        local varPointer = inkutils.asOrNil(value, VariablePointerValue)
+        if varPointer ~= nil then
+            local fullyResolvedVariablePointer = self:ResolveVariablePointer(varPointer)
             value = fullyResolvedVariablePointer
         end
     else
@@ -122,17 +122,24 @@ function VariablesState:Assign(varAss, value)
     if setGlobal then
         self:SetGlobal(name, value)
     else
-        self.callStack:SetTemporaryVariable(name, value, contextIndex)
+        self.callStack:SetTemporaryVariable(
+            name, 
+            value, 
+            varAss.isNewDeclaration, 
+            contextIndex
+        )
     end
 end
 
 function VariablesState:ResolveVariablePointer(varPointer)
     local contextIndex = varPointer.contextIndex
+
     if contextIndex == 0 then
         contextIndex = self:GetContextIndexOfVariableNamed(varPointer.variableName)
     end
 
     local valueOfVariablePointedTo = self:GetRawVariableWithName(varPointer.variableName, contextIndex)
+    
     if valueOfVariablePointedTo:is(VariablePointerValue) then
         local doubleRedirectionPointer = valueOfVariablePointedTo
         return doubleRedirectionPointer

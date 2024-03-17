@@ -49,8 +49,9 @@ function JTokenToRuntimeObject(token)
         end
 
         if obj["^var"] then
-            local ci = tonumber(obj["ci"])
-            return VariablePointerValue(obj["^var"], ci)
+            local ci = tonumber(obj["ci"]) + 1
+            local varPtr =  VariablePointerValue(obj["^var"], ci)
+            return varPtr
         end
 
         local currentDivert = nil
