@@ -689,7 +689,7 @@ end
 --- (StoryState.cs) RemoveFlow_Internal
 function StoryState:RemoveFlow(flowName)
     assert(flowName, "Must pass a non-null string to Story.DestroyFlow")
-    assert(flowName == self.kDefaultFlowName, "Cannot destroy default flow")
+    assert(flowName ~= self.kDefaultFlowName, "Cannot destroy default flow")
 
     if self._currentFlow.name == flowName then
         self:SwitchToDefaultFlow()
@@ -844,7 +844,7 @@ function StoryState:load(jObject)
 
         for flowName, flowObj in pairs(flowObjDict) do
             local flow = Flow(flowName, self.story, flowObj)
-            if #flowObjDict == 1 then
+            if flowsCount == 1 then
                 self._currentFlow = flow
             else
                 self._namedFlows[flowName] = flow
