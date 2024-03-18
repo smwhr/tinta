@@ -669,8 +669,8 @@ function StoryState:SwitchFlow(flowName)
         return
     end
 
-    local flow
-    if self._namedFlows[flowName] == nil then
+    local flow = self._namedFlows[flowName]
+    if flow == nil then
         flow = Flow(flowName, self.story)       
         self._namedFlows[flowName] = flow
         self._aliveFlowNamesDirty = true 

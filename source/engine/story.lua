@@ -112,7 +112,7 @@ function Story:currentFlowName()
 end
 
 function Story:currentFlowIsDefaultFlow()
-    return self.state.currentFlowIsDefaultFlow()
+    return self.state:currentFlowIsDefaultFlow()
 end
 
 function Story:aliveFlowNames()
@@ -496,7 +496,7 @@ end
 
 function Story:SwitchFlow(flowName)
     self:IfAsyncWeCant("switch flow")
-    assert(self.asyncSaving == true, "Story is already in background saving mode, can't switch flow to "..flowName)
+    assert(self.asyncSaving == false, "Story is already in background saving mode, can't switch flow to "..flowName)
 
     self.state:SwitchFlow(flowName)
 end
