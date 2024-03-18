@@ -44,6 +44,8 @@ CallStackElement = import('../engine/call_stack/element')
 CallStackThread = import('../engine/call_stack/thread')
 CallStack = import('../engine/call_stack')
 PushPopType = import('../constants/push_pop_type')
+Flow = import("../engine/flow")
+StatePatch = import('../engine/state_patch')
 StoryState = import('../engine/story_state')
 
 local Story = classic:extend()
@@ -100,9 +102,24 @@ end
 function Story:currentErrors()
     return self.state:currentErrors()
 end
+
 function Story:currentWarnings()
     return self.state:currentWarnings()
 end
+
+function Story:currentFlowName()
+    return self.state.currentFlowName
+end
+
+function Story:currentFlowIsDefaultFlow()
+    return self.state:currentFlowIsDefaultFlow()
+end
+
+function Story:aliveFlowNames()
+    return self.state.aliveFlowNames()
+end
+
+
 
 function Story:ContinueAsync(millisecsLimitAsync)
     self:ContinueInternal(millisecsLimitAsync)
@@ -464,6 +481,21 @@ function Story:ResetGlobals()
     self.state.variablesState:SnapshotDefaultGlobals();
 end
 
+function Story:SwitchFlow(flowName)
+    self:IfAsyncWeCant("switch flow")
+    assert(self.asyncSaving == false, "Story is already in background saving mode, can't switch flow to "..flowName)
+
+    self.state:SwitchFlow(flowName)
+end
+
+function Story:RemoveFlow(flowName)
+    self.state:RemoveFlow(flowName)
+end
+
+function Story:SwitchToDefaultFlow()
+    self.state:SwitchToDefaultFlow()
+end
+
 function Story:IsTruthy(obj)
     if obj:is(BaseValue) then
         return obj:isTruthy()
@@ -512,7 +544,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
             self.state.callStack:Push(
                 currentDivert.stackPushType,
                 nil,
-                #self.state.outputStream
+                #self.state:outputStream()
             )
         end
 
@@ -590,8 +622,8 @@ function Story:PerformLogicAndFlowControl(contentObj)
             if self.state:inStringEvaluation() then
                 local contentStackForTag = {}
                 local outputCountConsumed = 0
-                for i = #self.state.outputStream, 1, -1 do
-                    local obj = self.state.outputStream[i]
+                for i = #self.state:outputStream(), 1, -1 do
+                    local obj = self.state:outputStream()[i]
                     outputCountConsumed = outputCountConsumed + 1
                     
                     if obj:is(ControlCommand) then
@@ -627,8 +659,8 @@ function Story:PerformLogicAndFlowControl(contentObj)
             local contentToRetain = {}
             
             local outputCountConsumed = 0
-            for i = #self.state.outputStream, 1, -1 do
-                local obj = self.state.outputStream[i]
+            for i = #self.state:outputStream(), 1, -1 do
+                local obj = self.state:outputStream()[i]
 
                 outputCountConsumed = outputCountConsumed + 1
                 

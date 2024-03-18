@@ -35,7 +35,7 @@ end
 
 function PathComponent:Equals(otherComp)
     if otherComp ~= nil and otherComp:isIndex() == self:isIndex() then
-        if self.isIndex() then
+        if self:isIndex() then
             return self.index == otherComp.index
         else
             return self.name == otherComp.name
