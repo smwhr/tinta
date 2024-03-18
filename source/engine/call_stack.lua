@@ -106,10 +106,10 @@ end
 
 function CallStack:GetTemporaryVariableWithName(name, contextIndex)
     if contextIndex == 0 then
-        contextIndex = #(self:callStack()) + 1
+        contextIndex = self:currentElementIndex() + 1
     end
-        
-    local contextElement = self:callStack()[contextIndex -1]
+
+    local contextElement = self:callStack()[contextIndex - 1]
 
     local varValue = contextElement.temporaryVariables[name]
 
@@ -121,16 +121,14 @@ function CallStack:GetTemporaryVariableWithName(name, contextIndex)
 end
 
 function CallStack:SetTemporaryVariable(name, value, declareNew, contextIndex)
-    contextIndex = contextIndex or #(self:callStack())
-
-    local contextElement = self:callStack()[contextIndex]
-
-    if not contextElement.temporaryVariables then
-        contextElement.temporaryVariables = {}
+    if contextIndex == 0 then
+        contextIndex = self:currentElementIndex() + 1
     end
 
-    if not contextElement.temporaryVariables[name] then
-        if not declareNew then
+    local contextElement = self:callStack()[contextIndex - 1]
+
+    if not declareNew then
+        if not contextElement.temporaryVariables[name] then
             error("Could not find temporary variable to set: " .. name)
         end
     end
@@ -142,15 +140,13 @@ function CallStack:SetTemporaryVariable(name, value, declareNew, contextIndex)
     end
 
     contextElement.temporaryVariables[name] = value
-
-    return oldValue
 end
 
 function CallStack:ContextForVariableNamed(name)
     if self:currentElement().temporaryVariables[name] ~= nil then
-        return self:currentElementIndex()
+        return self:currentElementIndex() + 1
     else
-        return self:callStack()[1]
+        return 1
     end
 end
 
