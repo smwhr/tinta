@@ -790,6 +790,7 @@ end
 function StoryState:save()
     local save = {}
 
+    save["flows"] = {}
     if self._namedFlows ~= nil then
         for flowName, flow in pairs(self._namedFlows) do
             save["flows"][flowName] = flow:saveFlow()
@@ -828,9 +829,14 @@ function StoryState:load(jObject)
         error("Ink save format isn't compatible with the current version")
     end
 
+    local flowsCount = 0
+    
     local flowObjDict = jObject["flows"]
     if flowObjDict then
-        if #flowObjDict == 1 then
+        for _,_ in pairs(flowObjDict) do
+            flowsCount = flowsCount + 1
+        end
+        if flowsCount == 1 then
             self._namedFlows = nil
         else
             self._namedFlows = {}
@@ -845,7 +851,7 @@ function StoryState:load(jObject)
             end
         end
 
-        if self._namedFlows and #self._namedFlows > 1 then
+        if self._namedFlows and flowsCount > 1 then
             self._currentFlow = self._namedFlows[jObject["currentFlowName"]]
         end
     else

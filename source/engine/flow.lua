@@ -5,7 +5,8 @@ function Flow:new(name, story, jObject)
     if jObject ~= nil then
         self.outputStream = serialization.JArrayToRuntimeObjList(jObject["outputStream"])
         self._currentChoices = serialization.JArrayToRuntimeObjList(jObject["currentChoices"])
-        self.callStack:load(jObject["callstack"], self.story)
+        self.callStack = CallStack(story)
+        self.callStack:load(jObject["callstack"], story)
         self:LoadFlowChoiceThreads(jObject["choiceThreads"], story)
     else
         self.callStack = CallStack(story)

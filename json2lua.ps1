@@ -1,0 +1,2 @@
+﻿Set-Content -Path $args[1] -Value "return "
+(Get-Content -Path $args[0]) -replace '^\xEF\xBB\xBF', '' -replace '\[', '{' -replace 'null]', '"TERM"]' -replace ']', '}' -replace '"([^"]*)":', '["$1"] = ' | Add-Content -Path $args[1]
