@@ -1,18 +1,22 @@
 import "CoreLibs/graphics"
 dump = import('libs/dump')
 local gfx <const> = playdate.graphics
-local storyDefinition = import "tests/testjson"
+local storyDefinition = import "tests/external_function"
 Story = import "engine/story"
 local story = Story(storyDefinition)
 local choices
 local selectedChoiceIndex = 1
-
+local val = 0
 local function loadGame()
 	playdate.display.setRefreshRate(50) -- Sets framerate to 50 fps
 	gfx.setFont(font)
 
 	-- ink initialization
-
+	story:BindExternalFunction("incr", function() 
+		print("invoke incr")
+		val = val + 1 
+	end, true) 
+	story:BindExternalFunction("getvalue", function() return val end, true)
 	story:Continue()
 	choices = story:currentChoices()
 end
@@ -37,6 +41,12 @@ local function updateGame()
 			choices = story:currentChoices()
 			selectedChoiceIndex = 1
 		end
+		local c = story:currentText()
+		while (c == "" or c== nil or c == " ") and story:canContinue() do
+			story:Continue()
+			choices = story:currentChoices()
+		end
+		
 	end
 	if playdate.buttonJustPressed(playdate.kButtonB) then
 		if story:currentFlowIsDefaultFlow() then
