@@ -5,7 +5,7 @@ local storyDefinition = import "tests/testjson"
 Story = import "engine/story"
 local story = Story(storyDefinition)
 local choices
-local selectedChoiceIndex = 0
+local selectedChoiceIndex = 1
 
 local function loadGame()
 	playdate.display.setRefreshRate(50) -- Sets framerate to 50 fps
@@ -41,6 +41,12 @@ local function updateGame()
 	if playdate.buttonJustPressed(playdate.kButtonB) then
 		if story:currentFlowIsDefaultFlow() then
 			story:SwitchFlow("goont")
+			--story:ChoosePathString("murder_scene",false)
+		    if story:canContinue() then
+				story:Continue()
+				choices = story:currentChoices()
+				selectedChoiceIndex = 1
+			end
 		else
 			story:RemoveFlow("goont")
 		end
