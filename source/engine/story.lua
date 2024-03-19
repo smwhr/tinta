@@ -169,18 +169,18 @@ function Story:ContinueInternal(millisecsLimitAsync)
         end
 
         if not self:canContinue() then
-            if self.state.callStack:canPopThread() then
+            if self.state:callStack():canPopThread() then
                 error("Thread available to pop, threads should always be flat by the end of evaluation?")
             end
             if (    #self.state:generatedChoices() == 0
                 and not self.state.didSafeExit
                 and self._temporaryEvaluationContainer == nil
             ) then
-                if self.state.callStack:CanPop(PushPopType.Tunnel) then
+                if self.state:callStack():CanPop(PushPopType.Tunnel) then
                     error("unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?")
-                elseif self.state.callStack:CanPop(PushPopType.Function) then
+                elseif self.state:callStack():CanPop(PushPopType.Function) then
                     error("unexpectedly reached end of content. Do you need a '~ return'?")
-                elseif not self.state.callStack:canPop() then
+                elseif not self.state:callStack():canPop() then
                     error("ran out of content. Do you need a '-> DONE' or '-> END'?")
                 else
                     error("unexpectedly reached end of content for unknown reason. Please debug compiler!")
@@ -201,7 +201,7 @@ end
 function Story:ContinueSingleStep()
     self:Step()
 
-    if not self:canContinue() and not self.state.callStack:elementIsEvaluateFromGame() then
+    if not self:canContinue() and not self.state:callStack():elementIsEvaluateFromGame() then
         self:TryFollowDefaultInvisibleChoice()
     end
 
@@ -316,7 +316,7 @@ function Story:Step()
         local varPointer = inkutils.asOrNil(currentContentObj, VariablePointerValue)
         if varPointer then
             if varPointer.contextIndex == 0 then
-                local contextIdx = self.state.callStack:ContextForVariableNamed(varPointer.variableName)
+                local contextIdx = self.state:callStack():ContextForVariableNamed(varPointer.variableName)
                 currentContentObj = VariablePointerValue(
                     varPointer.variableName,
                     contextIdx
@@ -335,7 +335,7 @@ function Story:Step()
     local controlCmd = inkutils.asOrNil(currentContentObj, ControlCommand)
     if controlCmd then
         if controlCmd.value == ControlCommandType.StartThread then
-            self.state.callStack:PushThread()
+            self.state:callStack():PushThread()
         end
     end
 
@@ -358,15 +358,15 @@ function Story:NextContent()
     if not successfulPointerIncrement then
         local didPop = false
 
-        if self.state.callStack:CanPop(PushPopType.Function) then
+        if self.state:callStack():CanPop(PushPopType.Function) then
             self.state:PopCallStack(PushPopType.Function)
             if self.state:inExpressionEvaluation() then
                 self.state:PushEvaluationStack(Void())
             end
 
             didPop = true
-        elseif self.state.callStack:canPopThread() then
-            self.state.callStack:PopThread()
+        elseif self.state:callStack():canPopThread() then
+            self.state:callStack():PopThread()
             didPop = true
         else
             self.state:TryExitFunctionEvaluationFromGame()
@@ -428,7 +428,7 @@ end
 
 function Story:IncrementContentPointer()
     local successfulIncrement = true
-    local pointer = self.state.callStack:currentElement().currentPointer:Copy()
+    local pointer = self.state:callStack():currentElement().currentPointer:Copy()
     
     pointer.index = pointer.index + 1
 
@@ -541,7 +541,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
         end
 
         if currentDivert.pushesToStack then
-            self.state.callStack:Push(
+            self.state:callStack():Push(
                 currentDivert.stackPushType,
                 nil,
                 #self.state:outputStream()
@@ -602,7 +602,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
             if self.state:TryExitFunctionEvaluationFromGame() then
                 -- Do nothing
-            elseif self.state.callStack:currentElement().type ~= popType or not self.state.callStack:canPop() then
+            elseif self.state:callStack():currentElement().type ~= popType or not self.state:callStack():canPop() then
                 error("Mismatched push/pop in flow")
             else
                 self.state:PopCallStack()
@@ -781,8 +781,8 @@ function Story:PerformLogicAndFlowControl(contentObj)
         elseif evalCommand.value == ControlCommandType.StartThread then
             -- Done in main step function
         elseif evalCommand.value == ControlCommandType.Done then
-            if self.state.callStack:canPopThread() then
-                self.state.callStack:PopThread()
+            if self.state:callStack():canPopThread() then
+                self.state:callStack():PopThread()
             else
                 self.state.didSafeExit = true
                 self.state:setCurrentPointer(Pointer:Null())
@@ -913,7 +913,7 @@ function Story:ChoosePathString(path, resetCallstack, args)
     if resetCallstack then
         self:ResetCallstack()
     else
-        if self.state.callStack:currentElement().type == PushPopType.Function then
+        if self.state:callStack():currentElement().type == PushPopType.Function then
          error("Story was running a function when you called ChoosePathString - this is almost certainly not not what you want!")
         end
     end
@@ -1041,7 +1041,7 @@ function Story:ProcessChoice(choicePoint)
     choice.targetPath = choicePoint:pathOnChoice()
     choice.sourcePath = Path:of(choicePoint):componentsString()
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault
-    choice.threadAtGeneration = self.state.callStack:ForkThread()
+    choice.threadAtGeneration = self.state:callStack():ForkThread()
     choice.tags = lume.reverse(tags)
     choice.text = lume.trim(startText .. choiceOnlyText)
 
@@ -1063,7 +1063,7 @@ function Story:ChooseChoiceIndex(choiceIdx)
 
     local choiceToChoose = choices[choiceIdx]
 
-    self.state.callStack:setCurrentThread(choiceToChoose.threadAtGeneration)
+    self.state:callStack():setCurrentThread(choiceToChoose.threadAtGeneration)
 
     self:ChoosePath(choiceToChoose.targetPath)
 end
@@ -1075,10 +1075,10 @@ function Story:TryFollowDefaultInvisibleChoice()
 
     local choice = invisibleChoices[1]
 
-    self.state.callStack:setCurrentThread(choice.threadAtGeneration)
+    self.state:callStack():setCurrentThread(choice.threadAtGeneration)
 
     if self._stateSnapshotAtLastNewline ~= nil then
-        self.state.callStack:setCurrentThread(self.state.callStack:ForkThread())
+        self.state:callStack():setCurrentThread(self.state:callStack():ForkThread())
     end
 
 
