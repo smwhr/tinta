@@ -48,9 +48,11 @@ Flow = import("../engine/flow")
 StatePatch = import('../engine/state_patch')
 StoryState = import('../engine/story_state')
 
+---@class Story
 local Story = classic:extend()
 
 function Story:new(book)
+    self._recursiveContinueCount = 0
     self.inkVersionCurrent = 21;
     self.listDefinitions = serialization.JTokenToListDefinitions(book.listDefs)
     self._mainContentContainer = serialization.JTokenToRuntimeObject(book.root)
@@ -140,6 +142,8 @@ function Story:ContinueInternal(millisecsLimitAsync)
     millisecsLimitAsync = millisecsLimitAsync or 0
     isAsyncTimeLimited = millisecsLimitAsync > 0
 
+    self._recursiveContinueCount = self._recursiveContinueCount + 1
+
     if not self._asyncContinueActive then
         self._asyncContinueActive = isAsyncTimeLimited
 
@@ -148,6 +152,10 @@ function Story:ContinueInternal(millisecsLimitAsync)
         end
         self.state.didSafeExit = false;
         self.state:ResetOutput();
+
+        if self._recursiveContinueCount == 1 then
+            self.state.variablesState:batchObservingVariableChanges(true)
+        end
     end
 
     durationStop = inkutils.resetElapsedTime()
@@ -193,8 +201,18 @@ function Story:ContinueInternal(millisecsLimitAsync)
             end
         end
         self.state.didSafeExit = false
+        self._sawLookaheadUnsafeFunctionAfterNewLine = false
+
+        if self._recursiveContinueCount == 1 then
+            self.state.variablesState:batchObservingVariableChanges(false)
+        end
+
         self._asyncContinueActive = false
     end
+
+    self._recursiveContinueCount = self._recursiveContinueCount - 1
+
+    --TODO : Error handlers (Story.cs 523)
 end
 
 function Story:IfAsyncWeCant(activityStr)
@@ -473,6 +491,10 @@ end
 function Story:ResetState()
     self:IfAsyncWeCant("ResetState")
     self.state = StoryState(self)
+    local varChange = function (varName, newVal)
+        self:VariableStateDidChangeEvent(varName, newVal)
+    end
+    self.state.variablesState.variableChangedEvent[varChange] = varChange
     self:ResetGlobals()
 end
 
@@ -1196,7 +1218,18 @@ function Story:CallExternalFunction(funcName, numberOfArguments)
     self.state:PushEvaluationStack(returnObj);
 end
 
-
+---Bind a lua function to an ink EXTERNAL function declaration.
+---@param funcName string EXTERNAL ink function name to bind to.
+---@param func function The lua function to bind.
+---@param lookaheadSafe boolean the ink engine often evaluates further
+---than you might expect beyond the current line just in case it sees 
+---glue that will cause the two lines to become one. In this case it's 
+---possible that a function can appear to be called twice instead of 
+---just once, and earlier than you expect. If it's safe for your 
+---function to be called in this way (since the result and side effect 
+---of the function will not change), then you can pass 'true'. 
+---Usually, you want to pass 'false', especially if you want some action 
+---to be performed in game code when this function is called.
 function Story:BindExternalFunction(funcName, func, lookaheadSafe)
     assert(func, "Can't bind a null function");
     self:IfAsyncWeCant("bind an external function")
@@ -1207,12 +1240,16 @@ function Story:BindExternalFunction(funcName, func, lookaheadSafe)
     }
 end
 
+---Remove a binding for a named EXTERNAL ink function.
+---@param funcName string
 function Story:UnbindExternalFunction(funcName)
     self:IfAsyncWeCant("unbind an external function")
     assert(self._externals[funcName],"Function '" .. funcName .. "' has not been bound." )
     self._externals[funcName] = nil
 end
 
+---Check that all EXTERNAL ink functions have a valid bound lua function.
+---Note that this is automatically called on the first call to Continue().
 function Story:ValidateExternalBindings()
     local missingExternals = {}
     self:ValidateExternalBindings_Container(self._mainContentContainer, missingExternals)
@@ -1235,6 +1272,7 @@ function Story:ValidateExternalBindings()
     end
 end
 
+--- internal function, don't call
 function Story:ValidateExternalBindings_Container(c, missingExternals)
     for _,innerContent in ipairs(c.content) do
         local container = inkutils.asOrNil(innerContent, Container)
@@ -1248,6 +1286,7 @@ function Story:ValidateExternalBindings_Container(c, missingExternals)
     end
 end
 
+--- internal function, don't call
 function Story:ValidateExternalBindings_Object(o, missingExternals)
     local container = inkutils.asOrNil(o, Container) 
     if container then
@@ -1268,6 +1307,102 @@ function Story:ValidateExternalBindings_Object(o, missingExternals)
             else
                 table.insert(missingExternals, name)
             end
+        end
+    end
+end
+
+
+--- When the named global variable changes it's value, the observer will be
+---called to notify it of the change. Note that if the value changes multiple
+---times within the ink, the observer will only be called once, at the end
+---of the ink's evaluation. If, during the evaluation, it changes and then
+---changes back again to its original value, it will still be called.
+---Note that the observer will also be fired if the value of the variable
+---is changed externally to the ink, by directly setting a value in
+---story.variablesState.
+---@param variableName string  The name of the global variable to observe.
+---@param observer function A delegate function to call when the variable changes.
+function Story:ObserveVariable(variableName, observer)
+    self:IfAsyncWeCant("observe a new variable")
+    
+    if self._variableObservers == nil then
+        self._variableObservers = {}
+    end
+
+    if not self.state.variablesState:GlobalVariableExistsWithName(variableName) then
+        error("Cannot observe variable '"..variableName.."' because it wasn't declared in the ink story.")
+    end
+
+    if self._variableObservers[variableName] == nil then
+        self._variableObservers[variableName] = {}
+    end
+
+    self._variableObservers[variableName][observer] = observer
+
+end
+
+
+---Convenience function to allow multiple variables to be observed with the same
+---observer delegate function. See the singular ObserveVariable for details.
+---The observer will get one call for every variable that has changed.
+---@param variableNames string[] The set of variables to observe.
+---@param observer function The delegate function to call when any of the named variables change.
+function Story:ObserveVariables(variableNames, observer)
+    for _, varName in ipairs(variableNames) do
+        self:ObserveVariable(varName, observer)
+    end
+end
+
+---Removes the variable observer, to stop getting variable change notifications.
+---If you pass a specific variable name, it will stop observing that particular one. If you
+---pass null (or leave it blank, since it's optional), then the observer will be removed
+---from all variables that it's subscribed to. If you pass in a specific variable name and
+---null for the the observer, all observers for that variable will be removed. 
+---@param observer nil|function (Optional) The observer to stop observing.
+---@param specificVariableName nil|string (Optional) Specific variable name to stop observing.
+function Story:RemoveVariableObserver(observer, specificVariableName)
+    self:IfAsyncWeCant ("remove a variable observer")
+
+    if self._variableObservers == nil then
+        return
+    end
+
+    if specificVariableName ~= nil then
+        if self._variableObservers[specificVariableName] then
+            if observer then
+                self._variableObservers[specificVariableName][observer] = nil
+                if not inkutils.ContainsAny(self._variableObservers[specificVariableName]) then
+                    self._variableObservers[specificVariableName] = nil
+                end
+            else
+                self._variableObservers[specificVariableName] = nil
+            end
+        end
+    else
+        if observer ~= nil then
+            for varName, observers in pairs(self._variableObservers) do
+                observers[observer] = nil
+                if not inkutils.ContainsAny(observers) then
+                    self._variableObservers[varName] = nil
+                end
+            end
+        end    
+    end
+end
+
+function Story:VariableStateDidChangeEvent(variableName, newValueObject)
+    if self._variableObservers == nil then
+        return
+    end
+
+    local observers = self._variableObservers[variableName]
+    if observers ~= nil then
+        local val = inkutils.asOrNil(newValueObject, BaseValue)
+        if val == nil then
+            error("Tried to get the value of a variable that isn't a standard type")
+        end 
+        for _,func in pairs(observers) do
+            func(variableName, val.value)
         end
     end
 end
