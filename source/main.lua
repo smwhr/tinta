@@ -1,8 +1,9 @@
 import "CoreLibs/graphics"
 dump = import('libs/dump')
 local gfx <const> = playdate.graphics
-local storyDefinition = import "tests/external_function"
+local storyDefinition = import "tests/loop"
 Story = import "engine/story"
+---@type Story
 local story = Story(storyDefinition)
 local choices
 local selectedChoiceIndex = 1
@@ -12,11 +13,9 @@ local function loadGame()
 	gfx.setFont(font)
 
 	-- ink initialization
-	story:BindExternalFunction("incr", function() 
-		print("invoke incr")
-		val = val + 1 
-	end, true) 
-	story:BindExternalFunction("getvalue", function() return val end, true)
+	story:ObserveVariable("itercount", function(varName, val) 
+		print(varName.." changed to ".. tostring(val))
+	end)
 	story:Continue()
 	choices = story:currentChoices()
 end
