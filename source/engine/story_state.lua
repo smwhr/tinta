@@ -159,24 +159,6 @@ function StoryState:callStack()
     return self._currentFlow.callStack
 end
 
-function StoryState:PassArgumentsToEvaluationStack(args)
-    if args ~= nil then
-        for _, a in ipairs(args) do
-            if not (
-                    type(a) == "number" or
-                    type(a) == "string" or
-                    type(a) == "boolean"
-                ) then
-                error(
-                "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be number, string, bool. Argument was " ..
-                dump(a))
-            end
-
-            self:PushEvaluationStack(CreateValue(a))
-        end
-    end
-end
-
 function StoryState:OutputStreamDirty()
     self.outputStreamTextDirty = true
     self.outputStreamTagsDirty = true
@@ -354,7 +336,7 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     end
 end
 
-function StoryState:PopCallStack()
+function StoryState:PopCallStack(popType)
     if self:callStack():currentElement().type == PushPopType.Function then
         self:TrimWhitespaceFromFunctionEnd()
     end
@@ -370,6 +352,90 @@ function StoryState:SetChosenPath(path, incrementingTurnIndex)
 
     if (incrementingTurnIndex) then
         self.currentTurnIndex = self.currentTurnIndex + 1
+    end
+end
+
+function StoryState:StartFunctionEvaluationFromGame(funcContainer, arguments)
+    self:callStack():Push(PushPopType.FunctionEvaluationFromGame, #self.evaluationStack)
+    self._currentFlow.callStack.currentPointer = Pointer:StartOf(funcContainer)
+
+    self:PassArgumentsToEvaluationStack(arguments)
+end
+
+function StoryState:PassArgumentsToEvaluationStack(args)
+    if args ~= nil then
+        for _, a in ipairs(args) do
+            if not (
+                    type(a) == "number" or
+                    type(a) == "string" or
+                    type(a) == "boolean"
+                ) then
+                error(
+                "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be number, string, bool. Argument was " ..
+                dump(a))
+            end
+
+            self:PushEvaluationStack(CreateValue(a))
+        end
+    end
+end
+
+function StoryState:TryExitFunctionEvaluationFromGame()
+    local currEl = self:callStack():currentElement()
+    if currEl.type == PushPopType.FunctionEvaluationFromGame then
+        self:setCurrentPointer(Pointer:Null())
+        self.didSafeExit = true;
+        return true
+    end
+    return false
+end
+
+
+function StoryState:CompleteFunctionEvaluationFromGame()
+    if self:callStack().currentElement.type ~= PushPopType.FunctionEvaluationFromGame then
+        error("Expected external function evaluation to be complete. Stack trace: "..self:callStack().callStackTrace)
+    end
+
+    local originalEvaluationStackHeight = self:callStack().currentElement.evaluationStackHeightWhenPushed
+
+    local returnedObj = nil
+    while self.evaluationStack > originalEvaluationStackHeight do
+        local poppedObj = self:PopEvaluationStack()
+        if returnedObj == nil then
+            returnedObj = poppedObj
+        end
+    end
+
+    self:PopCallStack(PushPopType.FunctionEvaluationFromGame)
+
+    if returnedObj~= nil then
+        if returnedObj:is(Void) then
+            return nil
+        end
+
+        local returnVal = inkutils.asOrNil(returnedObj, BaseValue)
+
+        if returnVal.valueType == "DivertTarget" then
+            return tostring(returnVal.valueObject)
+        end
+
+        return returnVal.valueObject
+    end
+
+    return nil
+end
+
+function StoryState:AddError(message, isWarning)
+    if not isWarning then
+        if self.currentErrors == nil then 
+            self.currentErrors = {}
+        end
+        table.insert(self.currentErrors, message)
+    else
+        if self.currentWarnings == nil then
+            self.currentWarnings = {}
+        end
+        table.insert(self.currentWarnings, message)
     end
 end
 
@@ -534,16 +600,6 @@ end
 
 function StoryState:setInExpressionEvaluation(value)
     self:callStack():currentElement().inExpressionEvaluation = value
-end
-
-function StoryState:TryExitFunctionEvaluationFromGame()
-    local currEl = self:callStack():currentElement()
-    if currEl.type == PushPopType.FunctionEvaluationFromGame then
-        self:setCurrentPointer(Pointer:Null())
-        self.didSafeExit = true;
-        return true
-    end
-    return false
 end
 
 function StoryState:__tostring()
