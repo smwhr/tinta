@@ -55,6 +55,8 @@ function Story:new(book)
     self.listDefinitions = serialization.JTokenToListDefinitions(book.listDefs)
     self._mainContentContainer = serialization.JTokenToRuntimeObject(book.root)
     self:ResetState()
+    self._externals = {}
+    self.allowExternalFunctionFallbacks = true
 
     self.prevContainers = {}
     self._temporaryEvaluationContainer = nil
@@ -122,6 +124,9 @@ end
 
 
 function Story:ContinueAsync(millisecsLimitAsync)
+    if not self._hasValidatedExternals then
+        self:ValidateExternalBindings()
+    end
     self:ContinueInternal(millisecsLimitAsync)
 end
 
@@ -534,8 +539,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
             self.state.divertedPointer = self:PointerAtPath(varContents:targetPath())
         elseif currentDivert.isExternal then
-            --@TODO EXTERNALS
-            error("Call to external function is not implementend yet")
+            self:CallExternalFunction(currentDivert:targetPathString(), currentDivert.externalArgs)
         else
             self.state.divertedPointer = currentDivert:targetPointer():Copy()
         end
@@ -932,6 +936,11 @@ function Story:ContentAtPath(path)
     return self:mainContentContainer():ContentAtPath(path)
 end
 
+function Story:KnotContainerWithName(name)
+    local namedContainer = self:mainContentContainer().namedContent[name]
+    return inkutils.asOrNil(namedContainer, Container)
+end
+
 function Story:PointerAtPath(path)
     if path:length() == 0 then
         return Pointer:Null()
@@ -1066,6 +1075,201 @@ function Story:ChooseChoiceIndex(choiceIdx)
     self.state:callStack():setCurrentThread(choiceToChoose.threadAtGeneration)
 
     self:ChoosePath(choiceToChoose.targetPath)
+end
+
+--- Checks if a function exists.
+---@return boolean  _  true if the function exists, else false.
+---@param functionName string The name of the function as declared in ink.
+function Story:HasFunction(functionName)
+    return self:KnotContainerWithName(functionName) ~= nil
+end
+
+---Evaluates a function defined in ink. 
+---@return any _  The return value as returned from the ink function with `~ return myValue`, or `nil` if nothing is returned.
+---@return string textOutput the text content produced by the function via normal ink, if any.
+---@param functionName string The name of the function as declared in ink.
+---@param arguments table The arguments that the ink function takes, if any. Note that we don't (can't) do any validation on the number of arguments right now, so make sure you get it right!
+function Story:EvaluateFunction(functionName, arguments)
+    self:IfAsyncWeCant("evaluate a function")
+    assert(functionName, "Function is null")
+    assert(string.gsub(functionName," ","") ~= "", "Function is empty or white space.")
+    
+    local funcContainer = self:KnotContainerWithName(functionName)
+    assert(funcContainer, "Function doesn't exist: '" .. functionName.. "'")
+
+    local outputStreamBefore = {}
+    for _,item in ipairs(self.state:outputStream()) do
+        table.insert(outputStreamBefore, item)
+    end
+
+    self.state:ResetOutput(outputStreamBefore)
+
+    self.state:StartFunctionEvaluationFromGame(funcContainer, arguments)
+
+    local stringOutput = ""
+    while self:canContinue() do
+        stringOutput = stringOutput..self:Continue()
+    end
+    
+    local result = self.state:CompleteFunctionEvaluationFromGame()
+
+    return result, stringOutput
+end
+
+function Story:EvaluateExpression(exprContainer)
+    local startCallStackHeight = #self.state:callStack().elements
+    
+    self.state:callStack():Push(PushPopType.Tunnel)
+
+    self._temporaryEvaluationContainer = exprContainer
+
+    self.state:GoToStart()
+
+    local evalStackHeight = #self.state.evaluationStack
+
+    self:Continue()
+
+    self._temporaryEvaluationContainer = nil
+
+    if (#self.state:callStack().elements > startCallStackHeight) then
+        self.state:PopCallStack()
+    end
+
+    local endStackHeight = #self.state.evaluationStack
+    if endStackHeight > evalStackHeight then
+        return self.state:PopEvaluationStack()
+    end
+
+    return nil
+end
+
+function Story:TryGetExternalFunction(functionName)
+    return self._externals[functionName]
+end
+
+function Story:CallExternalFunction(funcName, numberOfArguments)
+    local fallbackFunctionContainer = nil
+    local funcDef = self:TryGetExternalFunction(funcName)
+    if funcDef~=nil and funcDef.lookaheadSafe == false and self.state.inStringEvaluation then
+        error("External function "..funcName.." could not be called because 1) it wasn't marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like \"hello {func()}\". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = "..funcName.."()")
+    end
+
+    if funcDef~=nil and funcDef.lookaheadSafe == false and self._stateSnapshotAtLastNewline~=nil then
+        self._sawLookaheadUnsafeFunctionAfterNewLine = true
+        return
+    end
+
+    if funcDef == nil then
+        if self.allowExternalFunctionFallbacks then
+            fallbackFunctionContainer = self:KnotContainerWithName(funcName)
+            assert(fallbackFunctionContainer,"Trying to call EXTERNAL function '" 
+                .. funcName .. 
+                "' which has not been bound, and fallback ink function could not be found.")
+            self.state:callStack():Push(
+                PushPopType.Function, 0, 
+                #self.state.outputStrean
+            )
+            self.state.divertedPointer = Pointer:StartOf(fallbackFunctionContainer)
+            return
+        else
+            error("Trying to call EXTERNAL function '" .. funcName .. 
+                "' which has not been bound (and ink fallbacks disabled).")
+        end
+    end
+
+    local arguments = {}
+    for i = numberOfArguments, 1, -1 do
+        local poppedObj = inkutils.asOrNil(self.state:PopEvaluationStack(), BaseValue)
+        local valueObj = poppedObj.valueObj
+        table.insert(arguments, valueObj, i)
+    end
+
+    local returnObj
+    local funcResult = funcDef.func(arguments)
+    if funcResult ~= nil then
+        returnObj = BaseValue(funcResult)
+        assert(returnObj,"Could not create ink value from returned object of type " .. type(funcResult))
+    else
+        returnObj = Void()
+    end
+    
+    self.state:PushEvaluationStack(returnObj);
+end
+
+
+function Story:BindExternalFunction(funcName, func, lookaheadSafe)
+    assert(func, "Can't bind a null function");
+    self:IfAsyncWeCant("bind an external function")
+    assert(self._externals[funcName]==nil, "Function '" ..funcName .. "' has already been bound.")
+    self._externals[funcName] = {
+        func = func,
+        lookaheadSafe = lookaheadSafe
+    }
+end
+
+function Story:UnbindExternalFunction(funcName)
+    self:IfAsyncWeCant("unbind an external function")
+    assert(self._externals[funcName],"Function '" .. funcName .. "' has not been bound." )
+    self._externals[funcName] = nil
+end
+
+function Story:ValidateExternalBindings()
+    local missingExternals = {}
+    self:ValidateExternalBindings_Container(self._mainContentContainer, missingExternals)
+
+    self._hasValidatedExternals = true
+
+    if #missingExternals == 0 then
+        self._hasValidatedExternals = true
+    else
+        local fallbackMessage = ", and no fallback ink function found."
+        if self.allowExternalFunctionFallbacks == false then
+            fallbackMessage = " (ink fallbacks disabled)"
+        end
+        local message = string.format(
+            "ERROR: Missing function binding for external: '%s' %s",
+                table.concat(missingExternals, "', '"),
+                fallbackMessage
+            )
+        error(message)
+    end
+end
+
+function Story:ValidateExternalBindings_Container(c, missingExternals)
+    for _,innerContent in ipairs(c.content) do
+        local container = inkutils.asOrNil(innerContent, Container)
+        if container == nil or container.hasValidName == false then
+            self:ValidateExternalBindings_Object(innerContent, missingExternals)
+        end
+    end
+
+    for k,v in c.namedContent do
+        self:ValidateExternalBindings_Object(v, missingExternals)
+    end
+end
+
+function Story:ValidateExternalBindings_Object(o, missingExternals)
+    local container = inkutils.asOrNil(o, Container) 
+    if container then
+        self:ValidateExternalBindings_Container(container, missingExternals)
+        return
+    end
+
+    local divert = inkutils.asOrNil(o, Divert)
+    if divert and divert.isExternal then
+        local name = divert:targetPathString()
+
+        if self._externals[name] == nil then
+            if self.allowExternalFunctionFallbacks then
+                local fallbackFound = self:mainContentContainer().namedContent[name]
+                if not fallbackFound then
+                    table.insert(missingExternals, name)
+                end
+            else
+                table.insert(missingExternals, name)
+            end
+        end
+    end
 end
 
 function Story:TryFollowDefaultInvisibleChoice()
