@@ -9,7 +9,6 @@ function StoryState:new(story)
     self.previousRandom = 0
 
     self.story = story
-    self.callStack = CallStack(story)
 
     self._currentFlow = Flow(self.kDefaultFlowName, story)
 
@@ -18,7 +17,7 @@ function StoryState:new(story)
 
     self.evaluationStack = {}
 
-    self.variablesState = VariablesState(self.callStack, story.listDefinitions)
+    self.variablesState = VariablesState(self:callStack(), story.listDefinitions)
     
     self.visitCounts = {}
     self.turnIndices = {}
@@ -43,7 +42,7 @@ function StoryState:new(story)
 end
 
 function StoryState:GoToStart()
-    self.callStack:currentElement().currentPointer = Pointer:StartOf(
+    self:callStack():currentElement().currentPointer = Pointer:StartOf(
         self.story:mainContentContainer()
     )
 end
@@ -131,19 +130,19 @@ function StoryState:aliveFlowNames()
 end
 
 function StoryState:currentPointer()
-    return self.callStack:currentElement().currentPointer
+    return self:callStack():currentElement().currentPointer
 end
 
 function StoryState:setCurrentPointer(pointer)
-    self.callStack:currentElement().currentPointer = pointer:Copy()
+    self:callStack():currentElement().currentPointer = pointer:Copy()
 end
 
 function StoryState:previousPointer()
-    return self.callStack:currentThread().previousPointer
+    return self:callStack():currentThread().previousPointer
 end
 
 function StoryState:setPreviousPointer(pointer)
-    self.callStack:currentThread().previousPointer = pointer:Copy()
+    self:callStack():currentThread().previousPointer = pointer:Copy()
 end
 
 function StoryState:ResetOutput(objs) --add parameter when needed
@@ -154,6 +153,10 @@ function StoryState:ResetOutput(objs) --add parameter when needed
         end
     end
     self:OutputStreamDirty()
+end
+
+function StoryState:callStack()
+    return self._currentFlow.callStack
 end
 
 function StoryState:PassArgumentsToEvaluationStack(args)
@@ -210,7 +213,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
         includeInOutput = true
     elseif text then
         local functionTrimIndex = 0
-        local currEl = self.callStack:currentElement()
+        local currEl = self:callStack():currentElement()
         if currEl.type == PushPopType.Function then
             functionTrimIndex = currEl.functionStartInOutputStream
         end
@@ -244,7 +247,7 @@ function StoryState:PushToOutputStreamIndividual(obj)
             elseif text:isNonWhitespace() then
                 if glueTrimIndex ~= 0 then self:RemoveExistingGlue() end
                 if functionTrimIndex ~= 0 then
-                    local callStackElements = self.callStack:elements()
+                    local callStackElements = self:callStack():elements()
                     for i = #callStackElements, 1, -1 do
                         local el = callStackElements[i]
                         if el.type == PushPopType.Function then
@@ -332,7 +335,7 @@ function StoryState:TrimNewlinesFromOutputStream()
 end
 
 function StoryState:TrimWhitespaceFromFunctionEnd()
-    local functionStartPoint = self.callStack:currentElement().functionStartInOutputStream
+    local functionStartPoint = self:callStack():currentElement().functionStartInOutputStream
     if functionStartPoint == 0 then
         functionStartPoint = 1
     end
@@ -352,11 +355,11 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
 end
 
 function StoryState:PopCallStack()
-    if self.callStack:currentElement().type == PushPopType.Function then
+    if self:callStack():currentElement().type == PushPopType.Function then
         self:TrimWhitespaceFromFunctionEnd()
     end
 
-    self.callStack:Pop(popType);
+    self:callStack():Pop(popType);
 end
 
 function StoryState:SetChosenPath(path, incrementingTurnIndex)
@@ -515,7 +518,7 @@ function StoryState:PeekEvaluationStack()
 end
 
 function StoryState:ForceEnd()
-    self.callStack:Reset()
+    self:callStack():Reset()
 
     self._currentFlow._currentChoices = {}
 
@@ -526,15 +529,15 @@ function StoryState:ForceEnd()
 end
 
 function StoryState:inExpressionEvaluation()
-    return self.callStack:currentElement().inExpressionEvaluation
+    return self:callStack():currentElement().inExpressionEvaluation
 end
 
 function StoryState:setInExpressionEvaluation(value)
-    self.callStack:currentElement().inExpressionEvaluation = value
+    self:callStack():currentElement().inExpressionEvaluation = value
 end
 
 function StoryState:TryExitFunctionEvaluationFromGame()
-    local currEl = self.callStack:currentElement()
+    local currEl = self:callStack():currentElement()
     if currEl.type == PushPopType.FunctionEvaluationFromGame then
         self:setCurrentPointer(Pointer:Null())
         self.didSafeExit = true;
@@ -675,7 +678,7 @@ function StoryState:SwitchFlow(flowName)
     end
 
     self._currentFlow = flow
-    self.variablesState.callStack = self._currentFlow.callStack
+    self.variablesState.callStack = self:callStack()
 
     self:OutputStreamDirty()
 end
@@ -705,7 +708,7 @@ function StoryState:CopyAndStartPatching()
     copy._patch = StatePatch(self._patch)
 
     copy._currentFlow.name = self._currentFlow.name;
-    copy._currentFlow.callStack = self.callStack:Clone()
+    copy._currentFlow.callStack = self:callStack():Clone()
 
     for _, c in pairs(self._currentFlow._currentChoices) do
         table.insert(copy._currentFlow._currentChoices, c)
@@ -736,7 +739,7 @@ function StoryState:CopyAndStartPatching()
     end
 
     copy.variablesState = self.variablesState
-    copy.variablesState.callStack = copy.callStack
+    copy.variablesState.callStack = copy:callStack()
     copy.variablesState.patch = copy._patch;
 
     for _, el in pairs(self.evaluationStack) do
@@ -761,7 +764,7 @@ function StoryState:CopyAndStartPatching()
 end
 
 function StoryState:RestoreAfterPatch()
-    self.variablesState.callStack = self.callStack;
+    self.variablesState.callStack = self:callStack()
     self.variablesState.patch = self._patch;
 end
 
@@ -863,7 +866,7 @@ function StoryState:load(jObject)
     self._aliveFlowNamesDirty = true
 
     self.variablesState:load(jObject["variablesState"])
-    self.variablesState.callStack = self.callStack
+    self.variablesState.callStack = self:callStack()
 
     self.evaluationStack = serialization.JArrayToRuntimeObjList(jObject["evalStack"])
 
