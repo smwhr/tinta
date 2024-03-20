@@ -2,7 +2,7 @@ local VariablesState = classic:extend()
 
 function VariablesState:new(callStack, listDefsOrigin)
     self.globalVariables = {}
-    self.variableChangedEvent = {}
+    self.variableChangedEvent = DelegateUtils.createDelegate()
     self.callStack = callStack
     self.listDefsOrigin = listDefsOrigin or {}
     self._batchObservingVariableChanges = false
@@ -26,9 +26,7 @@ function VariablesState:batchObservingVariableChanges(setValue)
         if (self._changedVariablesForBatchObs ~= nil) then
             for _, variableName in ipairs(self._changedVariablesForBatchObs) do
                 local currentValue = self.globalVariables[variableName]
-                for _, func in pairs(self.variableChangedEvent) do
-                    func(variableName, currentValue)
-                end
+                self.variableChangedEvent(variableName, currentValue)
             end
         end
     end
@@ -61,7 +59,7 @@ function VariablesState:SetGlobal(variableName, value)
         self.globalVariables[variableName] = value
     end
 
-    if inkutils.ContainsAny(self.variableChangedEvent) and oldValue and value.value ~= oldValue.value then
+    if self.variableChangedEvent:hasAnySubscriber() and oldValue and value.value ~= oldValue.value then
         if self:batchObservingVariableChanges() then
             if self.patch ~= nil then
                 patch:AddChangedVariable(variableName)
@@ -69,9 +67,7 @@ function VariablesState:SetGlobal(variableName, value)
                 table.insert(self._changedVariablesForBatchObs, variableName)
             end
         else
-            for _, func in pairs(self.variableChangedEvent) do
-                func(variableName, currentValue)
-            end
+            self.variableChangedEvent(variableName, currentValue)
         end
     end
 end
