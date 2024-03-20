@@ -3,6 +3,8 @@ lume = import('../libs/lume')
 inkutils = import('../libs/inkutils')
 PRNG = import('../libs/prng')
 serialization = import('../libs/serialization')
+---@type DelegateUtils
+DelegateUtils = import('../libs/delegate')
 
 BaseValue = import('../values/base')
 
@@ -494,7 +496,7 @@ function Story:ResetState()
     local varChange = function (varName, newVal)
         self:VariableStateDidChangeEvent(varName, newVal)
     end
-    self.state.variablesState.variableChangedEvent[varChange] = varChange
+    self.state.variablesState.variableChangedEvent:add(varChange)
     self:ResetGlobals()
 end
 
@@ -1272,6 +1274,7 @@ function Story:ValidateExternalBindings()
     end
 end
 
+---@private
 --- internal function, don't call
 function Story:ValidateExternalBindings_Container(c, missingExternals)
     for _,innerContent in ipairs(c.content) do
@@ -1286,6 +1289,7 @@ function Story:ValidateExternalBindings_Container(c, missingExternals)
     end
 end
 
+---@private
 --- internal function, don't call
 function Story:ValidateExternalBindings_Object(o, missingExternals)
     local container = inkutils.asOrNil(o, Container) 
@@ -1334,10 +1338,10 @@ function Story:ObserveVariable(variableName, observer)
     end
 
     if self._variableObservers[variableName] == nil then
-        self._variableObservers[variableName] = {}
+        self._variableObservers[variableName] = DelegateUtils.createDelegate()
     end
 
-    self._variableObservers[variableName][observer] = observer
+    self._variableObservers[variableName]:add(observer)
 
 end
 
@@ -1370,8 +1374,8 @@ function Story:RemoveVariableObserver(observer, specificVariableName)
     if specificVariableName ~= nil then
         if self._variableObservers[specificVariableName] then
             if observer then
-                self._variableObservers[specificVariableName][observer] = nil
-                if not inkutils.ContainsAny(self._variableObservers[specificVariableName]) then
+                self._variableObservers[specificVariableName]:sub(observer)
+                if not self._variableObservers[specificVariableName]:hasAnySubscriber() then
                     self._variableObservers[specificVariableName] = nil
                 end
             else
@@ -1381,8 +1385,8 @@ function Story:RemoveVariableObserver(observer, specificVariableName)
     else
         if observer ~= nil then
             for varName, observers in pairs(self._variableObservers) do
-                observers[observer] = nil
-                if not inkutils.ContainsAny(observers) then
+                observers:sub(observer)
+                if not observers:hasAnySubscriber() then
                     self._variableObservers[varName] = nil
                 end
             end
@@ -1401,9 +1405,7 @@ function Story:VariableStateDidChangeEvent(variableName, newValueObject)
         if val == nil then
             error("Tried to get the value of a variable that isn't a standard type")
         end 
-        for _,func in pairs(observers) do
-            func(variableName, val.value)
-        end
+        observers(variableName, val.value)
     end
 end
 
