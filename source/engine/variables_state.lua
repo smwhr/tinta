@@ -93,7 +93,7 @@ function VariablesState:Assign(varAss, value)
     if varAss.isNewDeclaration then
         setGlobal = varAss.isGlobal
     else
-        setGlobal = self:GlobalVariableExistsWithName(name, contextIndex)
+        setGlobal = self:GlobalVariableExistsWithName(name)
     end
 
     if varAss.isNewDeclaration then
