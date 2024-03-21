@@ -1,18 +1,21 @@
 import "CoreLibs/graphics"
 dump = import('libs/dump')
 local gfx <const> = playdate.graphics
-local storyDefinition = import "tests/testjson"
+local storyDefinition = import "tests/loop"
 Story = import "engine/story"
+---@type Story
 local story = Story(storyDefinition)
 local choices
-local selectedChoiceIndex = 0
-
+local selectedChoiceIndex = 1
+local val = 0
 local function loadGame()
 	playdate.display.setRefreshRate(50) -- Sets framerate to 50 fps
 	gfx.setFont(font)
 
 	-- ink initialization
-
+	story:ObserveVariable("itercount", function(varName, val) 
+		print(varName.." changed to ".. tostring(val))
+	end)
 	story:Continue()
 	choices = story:currentChoices()
 end
@@ -37,10 +40,22 @@ local function updateGame()
 			choices = story:currentChoices()
 			selectedChoiceIndex = 1
 		end
+		local c = story:currentText()
+		while (c == "" or c== nil or c == " ") and story:canContinue() do
+			story:Continue()
+			choices = story:currentChoices()
+		end
+		
 	end
 	if playdate.buttonJustPressed(playdate.kButtonB) then
 		if story:currentFlowIsDefaultFlow() then
 			story:SwitchFlow("goont")
+			--story:ChoosePathString("murder_scene",false)
+		    if story:canContinue() then
+				story:Continue()
+				choices = story:currentChoices()
+				selectedChoiceIndex = 1
+			end
 		else
 			story:RemoveFlow("goont")
 		end

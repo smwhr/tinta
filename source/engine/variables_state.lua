@@ -2,14 +2,34 @@ local VariablesState = classic:extend()
 
 function VariablesState:new(callStack, listDefsOrigin)
     self.globalVariables = {}
+    self.variableChangedEvent = DelegateUtils.createDelegate()
     self.callStack = callStack
     self.listDefsOrigin = listDefsOrigin or {}
+    self._batchObservingVariableChanges = false
+    self._changedVariablesForBatchObs = {}
 
     self.dontSaveDefaultValues = true
 
     self.defaultGlobalVariables = nil
     self.patch = nil
-    
+end
+
+function VariablesState:batchObservingVariableChanges(setValue)
+    if setValue == nil then
+        return self._batchObservingVariableChanges
+    end
+
+    self._batchObservingVariableChanges = setValue
+    if setValue then
+        self._changedVariablesForBatchObs = {}
+    else
+        if (self._changedVariablesForBatchObs ~= nil) then
+            for _, variableName in ipairs(self._changedVariablesForBatchObs) do
+                local currentValue = self.globalVariables[variableName]
+                self.variableChangedEvent(variableName, currentValue)
+            end
+        end
+    end
 end
 
 function VariablesState:SnapshotDefaultGlobals()
@@ -38,6 +58,18 @@ function VariablesState:SetGlobal(variableName, value)
     else
         self.globalVariables[variableName] = value
     end
+
+    if self.variableChangedEvent:hasAnySubscriber() and oldValue and value.value ~= oldValue.value then
+        if self:batchObservingVariableChanges() then
+            if self.patch ~= nil then
+                patch:AddChangedVariable(variableName)
+            elseif self._changedVariablesForBatchObs ~= nil then
+                table.insert(self._changedVariablesForBatchObs, variableName)
+            end
+        else
+            self.variableChangedEvent(variableName, currentValue)
+        end
+    end
 end
 
 function VariablesState:GetVariableWithName(name, contextIndex)
@@ -51,14 +83,13 @@ function VariablesState:GetVariableWithName(name, contextIndex)
 end
 
 function VariablesState:GlobalVariableExistsWithName(name)
-    return ( self.globalVariables[name] ~= nil
-       or ( self.defaultGlobalVariables ~= nil
-            and self.defaultGlobalVariables[name] ~= nil )
+    return (self.globalVariables[name] ~= nil
+        or (self.defaultGlobalVariables ~= nil
+            and self.defaultGlobalVariables[name] ~= nil)
     )
 end
 
 function VariablesState:GetRawVariableWithName(name, contextIndex)
-
     if contextIndex == 1 or contextIndex == 0 then
         local variableValue = nil
 
@@ -115,17 +146,16 @@ function VariablesState:Assign(varAss, value)
                 contextIndex = existingPointer.contextIndex
                 setGlobal = contextIndex == 1
             end
-
         until existingPointer == nil
     end
-    
+
     if setGlobal then
         self:SetGlobal(name, value)
     else
         self.callStack:SetTemporaryVariable(
-            name, 
-            value, 
-            varAss.isNewDeclaration, 
+            name,
+            value,
+            varAss.isNewDeclaration,
             contextIndex
         )
     end
@@ -139,7 +169,7 @@ function VariablesState:ResolveVariablePointer(varPointer)
     end
 
     local valueOfVariablePointedTo = self:GetRawVariableWithName(varPointer.variableName, contextIndex)
-    
+
     if valueOfVariablePointedTo:is(VariablePointerValue) then
         local doubleRedirectionPointer = valueOfVariablePointedTo
         return doubleRedirectionPointer
@@ -163,10 +193,9 @@ function VariablesState:ApplyPatch()
     self.patch = nil
 end
 
--- Can't declare a 
+-- Can't declare a
 function VariablesState:_(variableName, value)
     if value == nil then
-    
         local varContents = nil
         if self.patch ~= nil then
             varContents = self.patch:TryGetGlobal(variableName, nil)
@@ -185,10 +214,10 @@ function VariablesState:_(variableName, value)
             return nil
         end
     else
-        if self.defaultGlobalVariables[variableName]  == nil then
+        if self.defaultGlobalVariables[variableName] == nil then
             error("Cannot assign to a variable (" .. variableName .. ") that hasn't been declared in the story")
         end
-        
+
         local val = CreateValue(value)
         if val == nil then
             error("Invalid value passed to VariableState: " .. dump(value))
@@ -226,7 +255,7 @@ end
 -- SetJsonToken
 function VariablesState:load(jToken)
     self.globalVariables = {}
-    for varValKey,varValValue in pairs(self.defaultGlobalVariables) do
+    for varValKey, varValValue in pairs(self.defaultGlobalVariables) do
         local loadedToken = jToken[varValKey]
         if loadedToken ~= nil then
             local tokenInkObject = serialization.JTokenToRuntimeObject(loadedToken)
@@ -238,7 +267,6 @@ function VariablesState:load(jToken)
 end
 
 function VariablesState:RuntimeObjectsEqual(obj1, obj2)
-
     if obj1["valueType"] ~= obj2["valueType"] then
         return false
     end
@@ -250,8 +278,6 @@ function VariablesState:RuntimeObjectsEqual(obj1, obj2)
             return obj1.value == obj2.value
         end
     end
-
-    
 end
 
 function VariablesState:__tostring()

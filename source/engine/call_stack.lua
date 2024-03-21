@@ -38,7 +38,6 @@ function CallStack:Reset()
                     )
                 )
     table.insert(self.threads, newThread)
-    self:setCurrentThread(newThread)
 end
 
 
