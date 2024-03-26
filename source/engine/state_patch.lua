@@ -1,3 +1,4 @@
+---@class StatePatch
 local StatePatch = classic:extend()
 
 function StatePatch:new(toCopy)
