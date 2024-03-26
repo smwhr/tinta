@@ -22,6 +22,7 @@
 -- SOFTWARE.
 --
 
+---@class Lume
 local lume = { _version = "2.3.0" }
 
 local pairs, ipairs = pairs, ipairs

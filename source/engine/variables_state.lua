@@ -1,3 +1,6 @@
+---@class VariableState
+---@field patch StatePatch
+---@field callStack CallStack
 local VariablesState = classic:extend()
 
 function VariablesState:new(callStack, listDefsOrigin)

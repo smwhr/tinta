@@ -1,56 +1,7 @@
-classic = import('../libs/classic')
-lume = import('../libs/lume')
-inkutils = import('../libs/inkutils')
-PRNG = import('../libs/prng')
-serialization = import('../libs/serialization')
----@type DelegateUtils
-DelegateUtils = import('../libs/delegate')
-
-BaseValue = import('../values/base')
-
-ListItem = import('../values/list/list_item')
-ListValue = import('../values/list/list_value')
-ListDefinition = import('../values/list/list_definition')
-ListDefinitionOrigin = import('../values/list/list_definition_origin')
-InkList = import('../values/list/inklist')
-
-CreateValue = import('../values/create')
-BooleanValue = import('../values/boolean')
-ChoicePoint = import('../values/choice_point')
-Choice = import('../values/choice')
-Container = import('../values/container')
-ControlCommandType = import('../constants/control_commands/types')
-ControlCommandName = import('../constants/control_commands/names')
-ControlCommandValues = import('../constants/control_commands/values')
-ControlCommand = import('../values/control_command')
-DivertTarget = import('../values/divert_target')
-Divert = import('../values/divert')
-FloatValue = import('../values/float')
-Glue = import('../values/glue')
-IntValue = import('../values/integer')
-NativeFunctionCallName = import('../constants/native_functions/names')
-NativeFunctionCall = import('../values/native_function')
-Path = import('../values/path')
-Pointer = import('../engine/pointer')
-StringValue = import('../values/string')
-SearchResult = import('../values/search_result')
-Tag = import('../values/tag')
-VariableAssignment = import('../values/variable_assignment')
-VariablePointerValue = import('../values/variable_pointer')
-VariableReference = import('../values/variable_reference')
-Void = import('../values/void')
-
-VariablesState = import('../engine/variables_state')
-
-CallStackElement = import('../engine/call_stack/element')
-CallStackThread = import('../engine/call_stack/thread')
-CallStack = import('../engine/call_stack')
-PushPopType = import('../constants/push_pop_type')
-Flow = import("../engine/flow")
-StatePatch = import('../engine/state_patch')
-StoryState = import('../engine/story_state')
+import("../engine/ink_header")
 
 ---@class Story
+---@field state StoryState
 local Story = classic:extend()
 
 function Story:new(book)
@@ -78,6 +29,9 @@ function Story:mainContentContainer()
     end
 end
 
+---Check whether more content is available if you were to call `Continue()` - i.e.
+---are we mid story rather than at a choice point or at the end.
+---@return boolean _  if it's possible to call `Continue()`.
 function Story:canContinue()
     return self.state:canContinue()
 end
@@ -122,7 +76,7 @@ function Story:currentFlowIsDefaultFlow()
 end
 
 function Story:aliveFlowNames()
-    return self.state.aliveFlowNames()
+    return self.state:aliveFlowNames()
 end
 
 
@@ -134,11 +88,17 @@ function Story:ContinueAsync(millisecsLimitAsync)
     self:ContinueInternal(millisecsLimitAsync)
 end
 
+---Continue the story for one line of content, if possible.
+---If you're not sure if there's more content available, for example if you
+---want to check whether you're at a choice point or at the end of the story,
+---you should call `canContinue` before calling this function.
+---@return string _ The line of text content.
 function Story:Continue()
     self:ContinueInternal(0)
     return self:currentText();
 end
 
+---@private
 function Story:ContinueInternal(millisecsLimitAsync)
 
     millisecsLimitAsync = millisecsLimitAsync or 0
@@ -1191,7 +1151,7 @@ function Story:CallExternalFunction(funcName, numberOfArguments)
                 "' which has not been bound, and fallback ink function could not be found.")
             self.state:callStack():Push(
                 PushPopType.Function, 0, 
-                #self.state.outputStrean
+                #self.state:outputStream()
             )
             self.state.divertedPointer = Pointer:StartOf(fallbackFunctionContainer)
             return
@@ -1394,6 +1354,7 @@ function Story:RemoveVariableObserver(observer, specificVariableName)
     end
 end
 
+---@private
 function Story:VariableStateDidChangeEvent(variableName, newValueObject)
     if self._variableObservers == nil then
         return
@@ -1432,7 +1393,7 @@ function Story:ContinueMaximally()
     self:IfAsyncWeCant("Continue Maximally")
     local sb = {}
     while self:canContinue() do
-        table.insert(self:Continue())
+        table.insert(sb, self:Continue())
     end
     return table.concat(sb)
 end
