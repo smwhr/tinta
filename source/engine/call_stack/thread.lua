@@ -1,3 +1,4 @@
+---@class CallStackThread
 local CallStackThread = classic:extend()
 
 function CallStackThread:new()
