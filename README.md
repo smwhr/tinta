@@ -76,8 +76,8 @@ Saving would return a lua table representing the current state of the story.
 
 ```lua
 local saveData = story.state:save()
--- if on playdate
 
+-- if on playdate
 playdate.datastore.write(saveData)
 ```
 
@@ -154,7 +154,7 @@ Fallbacks are enabled by default. Which means if an external function is called 
 
 The first `Continue()` call will validate all external function bindings. If you forgot to bind an external function while the function has no fallback (or fallback is disabled), it throws an error. 
 
-** You can't bind multiple functions to the same external function declaration. ** If you try to do so, it throws an error.
+**You can't bind multiple functions to the same external function declaration.** If you try to do so, it throws an error.
 
 You could remove bindings, but in that case you should have a fallback defined in ink or bind with another lua function immediately afterwards. Otherwise calling that function would result in error.
 
