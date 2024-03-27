@@ -33,4 +33,11 @@ function ink.getElapsedTime()
     end
 end
 
+function ink.ContainsAny(t)
+    for _,_ in pairs(t) do
+        return true
+    end
+    return false
+end
+
 return ink

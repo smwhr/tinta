@@ -1,3 +1,4 @@
+---@class CallStackElement
 local CallStackElement = classic:extend()
 
 function CallStackElement:new(type, pointer, inExpressionEvaluation)

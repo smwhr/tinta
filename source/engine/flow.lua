@@ -1,3 +1,4 @@
+---@class Flow
 local Flow = classic:extend()
 
 function Flow:new(name, story, jObject)
