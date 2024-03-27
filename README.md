@@ -118,7 +118,7 @@ Additionally, you could add the same observer to multiple variables:
 
 ```lua
 -- Anonymous function (if you don't remove them later)
-story:ObserveVariable({ "myVarDeclaredInInk1", "myVarDeclaredInInk2" }, function(varName, val) 
+story:ObserveVariables({ "myVarDeclaredInInk1", "myVarDeclaredInInk2" }, function(varName, val) 
         -- do stuff
 		print(varName.." changed to ".. tostring(val))
 end)
