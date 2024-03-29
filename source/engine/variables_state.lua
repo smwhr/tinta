@@ -65,7 +65,7 @@ function VariablesState:SetGlobal(variableName, value)
     if self.variableChangedEvent:hasAnySubscriber() and oldValue and value.value ~= oldValue.value then
         if self:batchObservingVariableChanges() then
             if self.patch ~= nil then
-                patch:AddChangedVariable(variableName)
+                self.patch:AddChangedVariable(variableName)
             elseif self._changedVariablesForBatchObs ~= nil then
                 table.insert(self._changedVariablesForBatchObs, variableName)
             end

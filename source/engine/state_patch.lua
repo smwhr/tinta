@@ -27,7 +27,8 @@ function StatePatch:SetGlobal(name, value)
 end
 
 function StatePatch:AddChangedVariable(name)
-    self._changedVariables = lume.unique(table.insert(self._changedVariables, name))
+    table.insert(self._changedVariables, name)
+    self._changedVariables = lume.unique(self._changedVariables)
 end
 
 function StatePatch:TryGetVisitCount(container, count)

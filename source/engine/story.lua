@@ -1244,7 +1244,7 @@ function Story:ValidateExternalBindings_Container(c, missingExternals)
         end
     end
 
-    for k,v in c.namedContent do
+    for k,v in ipairs(c.namedContent) do
         self:ValidateExternalBindings_Object(v, missingExternals)
     end
 end
