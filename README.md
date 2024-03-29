@@ -17,7 +17,7 @@ tinta only implements a _runtime_ for ink, you will need to use a third party co
 For performance reasons, tinta is not able to run the compiled json files directly. Instead, you will need to convert the json to lua using the provided `json_to_lua.sh` or `json_to_lua.ps1` command line tool.
 
 ```sh
-json_to_lua.sh my_story.json > my_story.lua
+json_to_lua.sh my_story.json my_story.lua
 ```
 
 Note that you might need to change the script execution policy if you want to run the ps1 script.
