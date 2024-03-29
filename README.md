@@ -238,8 +238,22 @@ then in your lua code:
 ```lua
 import "../toyboxes/toyboxes"
 
-local storyDefinition = import("my_story")
-local story = Story(book)
+local my_story = import("my_story")
+local story = Story(my_story)
+```
+
+## Löve2D
+
+Download the full source code and copy the `source` folder inside your Löve2D game directory.  
+Rename this folder `tinta`.
+
+then in your lua code:
+
+```
+Story = require("tinta/love")
+
+local my_story = import("my_story")
+local story = Story(my_story)
 ```
 
 ## Notably missing features
