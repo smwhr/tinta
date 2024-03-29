@@ -129,13 +129,13 @@ function Container:AddToNamedContentOnly(namedContentObj)
 end
 
 function Container:setCountFlags(value)
-    if value & CountFlags.Visits > 0 then
+    if compat.band(value, CountFlags.Visits) > 0 then
         self.visitsShouldBeCounted = true
     end
-    if value & CountFlags.Turns > 0 then
+    if compat.band(value, CountFlags.Turns) > 0 then
         self.turnIndexShouldBeCounted = true
     end
-    if value & CountFlags.CountStartOnly > 0 then
+    if compat.band(value, CountFlags.CountStartOnly) > 0 then
         self.countingAtStartOnly = true
     end
 end

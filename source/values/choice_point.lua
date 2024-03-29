@@ -11,30 +11,30 @@ function ChoicePoint:new(onceOnly)
 end
 
 function ChoicePoint:setFlags(value)
-    self.hasCondition = (value & 1) > 0;
-    self.hasStartContent = (value & 2) > 0;
-    self.hasChoiceOnlyContent = (value & 4) > 0;
-    self.isInvisibleDefault = (value & 8) > 0;
-    self.onceOnly = (value & 16) > 0;
+    self.hasCondition = compat.band(value, 1) > 0;
+    self.hasStartContent = compat.band(value, 2) > 0;
+    self.hasChoiceOnlyContent = compat.band(value, 4) > 0;
+    self.isInvisibleDefault = compat.band(value, 8) > 0;
+    self.onceOnly = compat.band(value, 16) > 0;
 end
 
 function ChoicePoint:flags(value)
     local flags = 0
 
     if self.hasCondition then
-        flags = (flags | 1);
+        flags = compat.bor(flags, 1);
     end 
     if self.hasStartContent then
-        flags = (flags | 2);
+        flags = compat.bor(flags, 2);
     end 
     if self.hasChoiceOnlyContent then
-        flags = (flags | 4);
+        flags = compat.bor(flags, 4);
     end 
     if self.isInvisibleDefault then
-        flags = (flags | 8);
+        flags = compat.bor(flags, 8);
     end 
     if self.onceOnly then
-        flags = (flags | 16);
+        flags = compat.bor(flags, 16);
     end 
     return flags
 end

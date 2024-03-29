@@ -3,6 +3,12 @@ package.path = '/?.lua;' .. package.path
 
 dump = import('libs/dump')
 
+if _VERSION == "Lua 5.1" then
+    compat = import("compat/lua51")
+else
+    compat = import("compat/lua54")
+end
+
 function load_storyDefinition(storyDefinitionName)
     if storyDefinitionName:sub(#storyDefinitionName-3,#storyDefinitionName) == ".lua" then
         storyDefinitionName = storyDefinitionName:sub(1,#storyDefinitionName-4)
@@ -90,7 +96,7 @@ repeat
             save = story.state:save()
         elseif userInput == "load" then
             story.state:load(save)
-        elseif math.type(tonumber(userInput)) ~= nil then
+        elseif userInput:match("^%-?%d+$") ~= nil then
             story:ChooseChoiceIndex(userInput)
         else
             print("Should be a choice number, save or load")
