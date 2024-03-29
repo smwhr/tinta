@@ -1,60 +1,17 @@
-classic = import('../libs/classic')
-lume = import('../libs/lume')
-inkutils = import('../libs/inkutils')
-PRNG = import('../libs/prng')
-serialization = import('../libs/serialization')
+import("../engine/ink_header")
 
-BaseValue = import('../values/base')
-
-ListItem = import('../values/list/list_item')
-ListValue = import('../values/list/list_value')
-ListDefinition = import('../values/list/list_definition')
-ListDefinitionOrigin = import('../values/list/list_definition_origin')
-InkList = import('../values/list/inklist')
-
-CreateValue = import('../values/create')
-BooleanValue = import('../values/boolean')
-ChoicePoint = import('../values/choice_point')
-Choice = import('../values/choice')
-Container = import('../values/container')
-ControlCommandType = import('../constants/control_commands/types')
-ControlCommandName = import('../constants/control_commands/names')
-ControlCommandValues = import('../constants/control_commands/values')
-ControlCommand = import('../values/control_command')
-DivertTarget = import('../values/divert_target')
-Divert = import('../values/divert')
-FloatValue = import('../values/float')
-Glue = import('../values/glue')
-IntValue = import('../values/integer')
-NativeFunctionCallName = import('../constants/native_functions/names')
-NativeFunctionCall = import('../values/native_function')
-Path = import('../values/path')
-Pointer = import('../engine/pointer')
-StringValue = import('../values/string')
-SearchResult = import('../values/search_result')
-Tag = import('../values/tag')
-VariableAssignment = import('../values/variable_assignment')
-VariablePointerValue = import('../values/variable_pointer')
-VariableReference = import('../values/variable_reference')
-Void = import('../values/void')
-
-VariablesState = import('../engine/variables_state')
-
-CallStackElement = import('../engine/call_stack/element')
-CallStackThread = import('../engine/call_stack/thread')
-CallStack = import('../engine/call_stack')
-PushPopType = import('../constants/push_pop_type')
-Flow = import("../engine/flow")
-StatePatch = import('../engine/state_patch')
-StoryState = import('../engine/story_state')
-
+---@class Story
+---@field state StoryState
 local Story = classic:extend()
 
 function Story:new(book)
+    self._recursiveContinueCount = 0
     self.inkVersionCurrent = 21;
     self.listDefinitions = serialization.JTokenToListDefinitions(book.listDefs)
     self._mainContentContainer = serialization.JTokenToRuntimeObject(book.root)
     self:ResetState()
+    self._externals = {}
+    self.allowExternalFunctionFallbacks = true
 
     self.prevContainers = {}
     self._temporaryEvaluationContainer = nil
@@ -72,6 +29,9 @@ function Story:mainContentContainer()
     end
 end
 
+---Check whether more content is available if you were to call `Continue()` - i.e.
+---are we mid story rather than at a choice point or at the end.
+---@return boolean _  if it's possible to call `Continue()`.
 function Story:canContinue()
     return self.state:canContinue()
 end
@@ -116,24 +76,35 @@ function Story:currentFlowIsDefaultFlow()
 end
 
 function Story:aliveFlowNames()
-    return self.state.aliveFlowNames()
+    return self.state:aliveFlowNames()
 end
 
 
 
 function Story:ContinueAsync(millisecsLimitAsync)
+    if not self._hasValidatedExternals then
+        self:ValidateExternalBindings()
+    end
     self:ContinueInternal(millisecsLimitAsync)
 end
 
+---Continue the story for one line of content, if possible.
+---If you're not sure if there's more content available, for example if you
+---want to check whether you're at a choice point or at the end of the story,
+---you should call `canContinue` before calling this function.
+---@return string _ The line of text content.
 function Story:Continue()
     self:ContinueInternal(0)
     return self:currentText();
 end
 
+---@private
 function Story:ContinueInternal(millisecsLimitAsync)
 
     millisecsLimitAsync = millisecsLimitAsync or 0
     isAsyncTimeLimited = millisecsLimitAsync > 0
+
+    self._recursiveContinueCount = self._recursiveContinueCount + 1
 
     if not self._asyncContinueActive then
         self._asyncContinueActive = isAsyncTimeLimited
@@ -143,6 +114,10 @@ function Story:ContinueInternal(millisecsLimitAsync)
         end
         self.state.didSafeExit = false;
         self.state:ResetOutput();
+
+        if self._recursiveContinueCount == 1 then
+            self.state.variablesState:batchObservingVariableChanges(true)
+        end
     end
 
     durationStop = inkutils.resetElapsedTime()
@@ -188,8 +163,18 @@ function Story:ContinueInternal(millisecsLimitAsync)
             end
         end
         self.state.didSafeExit = false
+        self._sawLookaheadUnsafeFunctionAfterNewLine = false
+
+        if self._recursiveContinueCount == 1 then
+            self.state.variablesState:batchObservingVariableChanges(false)
+        end
+
         self._asyncContinueActive = false
     end
+
+    self._recursiveContinueCount = self._recursiveContinueCount - 1
+
+    --TODO : Error handlers (Story.cs 523)
 end
 
 function Story:IfAsyncWeCant(activityStr)
@@ -468,6 +453,10 @@ end
 function Story:ResetState()
     self:IfAsyncWeCant("ResetState")
     self.state = StoryState(self)
+    local varChange = function (varName, newVal)
+        self:VariableStateDidChangeEvent(varName, newVal)
+    end
+    self.state.variablesState.variableChangedEvent:add(varChange)
     self:ResetGlobals()
 end
 
@@ -534,8 +523,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
 
             self.state.divertedPointer = self:PointerAtPath(varContents:targetPath())
         elseif currentDivert.isExternal then
-            --@TODO EXTERNALS
-            error("Call to external function is not implementend yet")
+            self:CallExternalFunction(currentDivert:targetPathString(), currentDivert.externalArgs)
         else
             self.state.divertedPointer = currentDivert:targetPointer():Copy()
         end
@@ -932,6 +920,11 @@ function Story:ContentAtPath(path)
     return self:mainContentContainer():ContentAtPath(path)
 end
 
+function Story:KnotContainerWithName(name)
+    local namedContainer = self:mainContentContainer().namedContent[name]
+    return inkutils.asOrNil(namedContainer, Container)
+end
+
 function Story:PointerAtPath(path)
     if path:length() == 0 then
         return Pointer:Null()
@@ -1068,6 +1061,315 @@ function Story:ChooseChoiceIndex(choiceIdx)
     self:ChoosePath(choiceToChoose.targetPath)
 end
 
+--- Checks if a function exists.
+---@return boolean  _  true if the function exists, else false.
+---@param functionName string The name of the function as declared in ink.
+function Story:HasFunction(functionName)
+    return self:KnotContainerWithName(functionName) ~= nil
+end
+
+---Evaluates a function defined in ink. 
+---@return any _  The return value as returned from the ink function with `~ return myValue`, or `nil` if nothing is returned.
+---@return string textOutput the text content produced by the function via normal ink, if any.
+---@param functionName string The name of the function as declared in ink.
+---@param arguments table The arguments that the ink function takes, if any. Note that we don't (can't) do any validation on the number of arguments right now, so make sure you get it right!
+function Story:EvaluateFunction(functionName, arguments)
+    self:IfAsyncWeCant("evaluate a function")
+    assert(functionName, "Function is null")
+    assert(string.gsub(functionName," ","") ~= "", "Function is empty or white space.")
+    
+    local funcContainer = self:KnotContainerWithName(functionName)
+    assert(funcContainer, "Function doesn't exist: '" .. functionName.. "'")
+
+    local outputStreamBefore = {}
+    for _,item in ipairs(self.state:outputStream()) do
+        table.insert(outputStreamBefore, item)
+    end
+
+    self.state:ResetOutput(outputStreamBefore)
+
+    self.state:StartFunctionEvaluationFromGame(funcContainer, arguments)
+
+    local stringOutput = ""
+    while self:canContinue() do
+        stringOutput = stringOutput..self:Continue()
+    end
+    
+    local result = self.state:CompleteFunctionEvaluationFromGame()
+
+    return result, stringOutput
+end
+
+function Story:EvaluateExpression(exprContainer)
+    local startCallStackHeight = #self.state:callStack().elements
+    
+    self.state:callStack():Push(PushPopType.Tunnel)
+
+    self._temporaryEvaluationContainer = exprContainer
+
+    self.state:GoToStart()
+
+    local evalStackHeight = #self.state.evaluationStack
+
+    self:Continue()
+
+    self._temporaryEvaluationContainer = nil
+
+    if (#self.state:callStack().elements > startCallStackHeight) then
+        self.state:PopCallStack()
+    end
+
+    local endStackHeight = #self.state.evaluationStack
+    if endStackHeight > evalStackHeight then
+        return self.state:PopEvaluationStack()
+    end
+
+    return nil
+end
+
+function Story:TryGetExternalFunction(functionName)
+    return self._externals[functionName]
+end
+
+function Story:CallExternalFunction(funcName, numberOfArguments)
+    local fallbackFunctionContainer = nil
+    local funcDef = self:TryGetExternalFunction(funcName)
+    if funcDef~=nil and funcDef.lookaheadSafe == false and self.state.inStringEvaluation then
+        error("External function "..funcName.." could not be called because 1) it wasn't marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like \"hello {func()}\". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = "..funcName.."()")
+    end
+
+    if funcDef~=nil and funcDef.lookaheadSafe == false and self._stateSnapshotAtLastNewline~=nil then
+        self._sawLookaheadUnsafeFunctionAfterNewLine = true
+        return
+    end
+
+    if funcDef == nil then
+        if self.allowExternalFunctionFallbacks then
+            fallbackFunctionContainer = self:KnotContainerWithName(funcName)
+            assert(fallbackFunctionContainer,"Trying to call EXTERNAL function '" 
+                .. funcName .. 
+                "' which has not been bound, and fallback ink function could not be found.")
+            self.state:callStack():Push(
+                PushPopType.Function, 0, 
+                #self.state:outputStream()
+            )
+            self.state.divertedPointer = Pointer:StartOf(fallbackFunctionContainer)
+            return
+        else
+            error("Trying to call EXTERNAL function '" .. funcName .. 
+                "' which has not been bound (and ink fallbacks disabled).")
+        end
+    end
+
+    local arguments = {}
+    for i = numberOfArguments, 1, -1 do
+        local poppedObj = inkutils.asOrNil(self.state:PopEvaluationStack(), BaseValue)
+        local valueObj = poppedObj.valueObj
+        table.insert(arguments, valueObj, i)
+    end
+
+    local returnObj
+    local funcResult = funcDef.func(arguments)
+    if funcResult ~= nil then
+        returnObj = BaseValue(funcResult)
+        assert(returnObj,"Could not create ink value from returned object of type " .. type(funcResult))
+    else
+        returnObj = Void()
+    end
+    
+    self.state:PushEvaluationStack(returnObj);
+end
+
+---Bind a lua function to an ink EXTERNAL function declaration.
+---@param funcName string EXTERNAL ink function name to bind to.
+---@param func function The lua function to bind.
+---@param lookaheadSafe boolean the ink engine often evaluates further
+---than you might expect beyond the current line just in case it sees 
+---glue that will cause the two lines to become one. In this case it's 
+---possible that a function can appear to be called twice instead of 
+---just once, and earlier than you expect. If it's safe for your 
+---function to be called in this way (since the result and side effect 
+---of the function will not change), then you can pass 'true'. 
+---Usually, you want to pass 'false', especially if you want some action 
+---to be performed in game code when this function is called.
+function Story:BindExternalFunction(funcName, func, lookaheadSafe)
+    assert(func, "Can't bind a null function");
+    self:IfAsyncWeCant("bind an external function")
+    assert(self._externals[funcName]==nil, "Function '" ..funcName .. "' has already been bound.")
+    self._externals[funcName] = {
+        func = func,
+        lookaheadSafe = lookaheadSafe
+    }
+end
+
+---Remove a binding for a named EXTERNAL ink function.
+---@param funcName string
+function Story:UnbindExternalFunction(funcName)
+    self:IfAsyncWeCant("unbind an external function")
+    assert(self._externals[funcName],"Function '" .. funcName .. "' has not been bound." )
+    self._externals[funcName] = nil
+end
+
+---Check that all EXTERNAL ink functions have a valid bound lua function.
+---Note that this is automatically called on the first call to Continue().
+function Story:ValidateExternalBindings()
+    local missingExternals = {}
+    self:ValidateExternalBindings_Container(self._mainContentContainer, missingExternals)
+
+    self._hasValidatedExternals = true
+
+    if #missingExternals == 0 then
+        self._hasValidatedExternals = true
+    else
+        local fallbackMessage = ", and no fallback ink function found."
+        if self.allowExternalFunctionFallbacks == false then
+            fallbackMessage = " (ink fallbacks disabled)"
+        end
+        local message = string.format(
+            "ERROR: Missing function binding for external: '%s' %s",
+                table.concat(missingExternals, "', '"),
+                fallbackMessage
+            )
+        error(message)
+    end
+end
+
+---@private
+--- internal function, don't call
+function Story:ValidateExternalBindings_Container(c, missingExternals)
+    for _,innerContent in ipairs(c.content) do
+        local container = inkutils.asOrNil(innerContent, Container)
+        if container == nil or container.hasValidName == false then
+            self:ValidateExternalBindings_Object(innerContent, missingExternals)
+        end
+    end
+
+    for k,v in c.namedContent do
+        self:ValidateExternalBindings_Object(v, missingExternals)
+    end
+end
+
+---@private
+--- internal function, don't call
+function Story:ValidateExternalBindings_Object(o, missingExternals)
+    local container = inkutils.asOrNil(o, Container) 
+    if container then
+        self:ValidateExternalBindings_Container(container, missingExternals)
+        return
+    end
+
+    local divert = inkutils.asOrNil(o, Divert)
+    if divert and divert.isExternal then
+        local name = divert:targetPathString()
+
+        if self._externals[name] == nil then
+            if self.allowExternalFunctionFallbacks then
+                local fallbackFound = self:mainContentContainer().namedContent[name]
+                if not fallbackFound then
+                    table.insert(missingExternals, name)
+                end
+            else
+                table.insert(missingExternals, name)
+            end
+        end
+    end
+end
+
+
+--- When the named global variable changes it's value, the observer will be
+---called to notify it of the change. Note that if the value changes multiple
+---times within the ink, the observer will only be called once, at the end
+---of the ink's evaluation. If, during the evaluation, it changes and then
+---changes back again to its original value, it will still be called.
+---Note that the observer will also be fired if the value of the variable
+---is changed externally to the ink, by directly setting a value in
+---story.variablesState.
+---@param variableName string  The name of the global variable to observe.
+---@param observer function A delegate function to call when the variable changes.
+function Story:ObserveVariable(variableName, observer)
+    self:IfAsyncWeCant("observe a new variable")
+    
+    if self._variableObservers == nil then
+        self._variableObservers = {}
+    end
+
+    if not self.state.variablesState:GlobalVariableExistsWithName(variableName) then
+        error("Cannot observe variable '"..variableName.."' because it wasn't declared in the ink story.")
+    end
+
+    if self._variableObservers[variableName] == nil then
+        self._variableObservers[variableName] = DelegateUtils.createDelegate()
+    end
+
+    self._variableObservers[variableName]:add(observer)
+
+end
+
+
+---Convenience function to allow multiple variables to be observed with the same
+---observer delegate function. See the singular ObserveVariable for details.
+---The observer will get one call for every variable that has changed.
+---@param variableNames string[] The set of variables to observe.
+---@param observer function The delegate function to call when any of the named variables change.
+function Story:ObserveVariables(variableNames, observer)
+    for _, varName in ipairs(variableNames) do
+        self:ObserveVariable(varName, observer)
+    end
+end
+
+---Removes the variable observer, to stop getting variable change notifications.
+---If you pass a specific variable name, it will stop observing that particular one. If you
+---pass null (or leave it blank, since it's optional), then the observer will be removed
+---from all variables that it's subscribed to. If you pass in a specific variable name and
+---null for the the observer, all observers for that variable will be removed. 
+---@param observer nil|function (Optional) The observer to stop observing.
+---@param specificVariableName nil|string (Optional) Specific variable name to stop observing.
+function Story:RemoveVariableObserver(observer, specificVariableName)
+    self:IfAsyncWeCant ("remove a variable observer")
+
+    if self._variableObservers == nil then
+        return
+    end
+
+    if specificVariableName ~= nil then
+        if self._variableObservers[specificVariableName] then
+            if observer then
+                self._variableObservers[specificVariableName]:sub(observer)
+                if not self._variableObservers[specificVariableName]:hasAnySubscriber() then
+                    self._variableObservers[specificVariableName] = nil
+                end
+            else
+                self._variableObservers[specificVariableName] = nil
+            end
+        end
+    else
+        if observer ~= nil then
+            for varName, observers in pairs(self._variableObservers) do
+                observers:sub(observer)
+                if not observers:hasAnySubscriber() then
+                    self._variableObservers[varName] = nil
+                end
+            end
+        end    
+    end
+end
+
+---@private
+function Story:VariableStateDidChangeEvent(variableName, newValueObject)
+    if self._variableObservers == nil then
+        return
+    end
+
+    local observers = self._variableObservers[variableName]
+    if observers ~= nil then
+        local val = inkutils.asOrNil(newValueObject, BaseValue)
+        if val == nil then
+            error("Tried to get the value of a variable that isn't a standard type")
+        end 
+        observers(variableName, val.value)
+    end
+end
+
 function Story:TryFollowDefaultInvisibleChoice()
     local allChoices = self.state:currentChoices()
     local invisibleChoices = lume.filter(allChoices, function(c) return c.isInvisibleDefault end)
@@ -1091,7 +1393,7 @@ function Story:ContinueMaximally()
     self:IfAsyncWeCant("Continue Maximally")
     local sb = {}
     while self:canContinue() do
-        table.insert(self:Continue())
+        table.insert(sb, self:Continue())
     end
     return table.concat(sb)
 end

@@ -1,3 +1,4 @@
+---@class Tag
 local Tag = classic:extend()
 
 function Tag:new(tagText)

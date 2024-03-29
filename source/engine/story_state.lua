@@ -1,3 +1,14 @@
+--- All story state information is included in the StoryState class,
+---including global variables, read counts, the pointer to the current
+--- point in the story, the call stack (for tunnels, functions, etc),
+--- and a few other smaller bits and pieces. You can save the current
+--- state using the json serialisation functions ToJson and LoadJson.
+---@class StoryState 
+---@field story Story
+---@field _patch StatePatch
+---@field kInkSaveStateVersion integer The current version of the state save file JSON-based format.
+---@field kMinCompatibleLoadVersion integer 
+---@field visitCounts table<string,integer>
 local StoryState = classic:extend()
 
 function StoryState:new(story)
@@ -18,7 +29,7 @@ function StoryState:new(story)
     self.evaluationStack = {}
 
     self.variablesState = VariablesState(self:callStack(), story.listDefinitions)
-    
+
     self.visitCounts = {}
     self.turnIndices = {}
 
@@ -45,6 +56,16 @@ function StoryState:GoToStart()
     self:callStack():currentElement().currentPointer = Pointer:StartOf(
         self.story:mainContentContainer()
     )
+end
+
+---String representation of the location where the story currently is.
+---@return string|nil pathString
+function StoryState:currentPathString()
+    local pointer = self:currentPointer()
+    if pointer:isNull() then
+        return nil
+    end
+    return tostring(pointer.path)
 end
 
 function StoryState:currentText()
@@ -120,7 +141,7 @@ function StoryState:aliveFlowNames()
     if self._aliveFlowNamesDirty then
         self._aliveFlowNames = {}
         if self._namedFlows then
-            for k,_ in pairs(self._namedFlows) do
+            for k, _ in pairs(self._namedFlows) do
                 table.insert(self._aliveFlowNames, k)
             end
         end
@@ -128,6 +149,7 @@ function StoryState:aliveFlowNames()
     end
     return self._aliveFlowNames
 end
+
 
 function StoryState:currentPointer()
     return self:callStack():currentElement().currentPointer
@@ -159,29 +181,13 @@ function StoryState:callStack()
     return self._currentFlow.callStack
 end
 
-function StoryState:PassArgumentsToEvaluationStack(args)
-    if args ~= nil then
-        for _, a in ipairs(args) do
-            if not (
-                    type(a) == "number" or
-                    type(a) == "string" or
-                    type(a) == "boolean"
-                ) then
-                error(
-                "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be number, string, bool. Argument was " ..
-                dump(a))
-            end
-
-            self:PushEvaluationStack(CreateValue(a))
-        end
-    end
-end
-
 function StoryState:OutputStreamDirty()
     self.outputStreamTextDirty = true
     self.outputStreamTagsDirty = true
 end
 
+---Push to output stream, but split out newlines in text for consistency
+---in dealing with them later.
 function StoryState:PushToOutputStream(obj)
     local text = inkutils.asOrNil(obj, StringValue)
     if text then
@@ -287,8 +293,11 @@ function StoryState:outputStreamEndsInNewline()
             local obj = self:outputStream()[i]
             if obj:is(ControlCommand) then break end
             if obj:is(StringValue) then
-                if obj.isNewline then return true
-                elseif obj:isNonWhitespace() then break end
+                if obj.isNewline then
+                    return true
+                elseif obj:isNonWhitespace() then
+                    break
+                end
             end
         end
     end
@@ -334,6 +343,12 @@ function StoryState:TrimNewlinesFromOutputStream()
     self:OutputStreamDirty()
 end
 
+---@private
+--- **Internal Function, don't call.**
+---Add the end of a function call, trim any whitespace from the end.
+---We always trim the start and end of the text that a function produces.
+---The start whitespace is discard as it is generated, and the end
+---whitespace is trimmed in one go here when we pop the function.
 function StoryState:TrimWhitespaceFromFunctionEnd()
     local functionStartPoint = self:callStack():currentElement().functionStartInOutputStream
     if functionStartPoint == 0 then
@@ -354,7 +369,7 @@ function StoryState:TrimWhitespaceFromFunctionEnd()
     end
 end
 
-function StoryState:PopCallStack()
+function StoryState:PopCallStack(popType)
     if self:callStack():currentElement().type == PushPopType.Function then
         self:TrimWhitespaceFromFunctionEnd()
     end
@@ -370,6 +385,89 @@ function StoryState:SetChosenPath(path, incrementingTurnIndex)
 
     if (incrementingTurnIndex) then
         self.currentTurnIndex = self.currentTurnIndex + 1
+    end
+end
+
+function StoryState:StartFunctionEvaluationFromGame(funcContainer, arguments)
+    self:callStack():Push(PushPopType.FunctionEvaluationFromGame, #self.evaluationStack)
+    self._currentFlow.callStack.currentPointer = Pointer:StartOf(funcContainer)
+
+    self:PassArgumentsToEvaluationStack(arguments)
+end
+
+function StoryState:PassArgumentsToEvaluationStack(args)
+    if args ~= nil then
+        for _, a in ipairs(args) do
+            if not (
+                    type(a) == "number" or
+                    type(a) == "string" or
+                    type(a) == "boolean"
+                ) then
+                error(
+                    "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be number, string, bool. Argument was " ..
+                    dump(a))
+            end
+
+            self:PushEvaluationStack(CreateValue(a))
+        end
+    end
+end
+
+function StoryState:TryExitFunctionEvaluationFromGame()
+    local currEl = self:callStack():currentElement()
+    if currEl.type == PushPopType.FunctionEvaluationFromGame then
+        self:setCurrentPointer(Pointer:Null())
+        self.didSafeExit = true;
+        return true
+    end
+    return false
+end
+
+function StoryState:CompleteFunctionEvaluationFromGame()
+    if self:callStack().currentElement.type ~= PushPopType.FunctionEvaluationFromGame then
+        error("Expected external function evaluation to be complete. Stack trace: " .. self:callStack().callStackTrace)
+    end
+
+    local originalEvaluationStackHeight = self:callStack().currentElement.evaluationStackHeightWhenPushed
+
+    local returnedObj = nil
+    while self.evaluationStack > originalEvaluationStackHeight do
+        local poppedObj = self:PopEvaluationStack()
+        if returnedObj == nil then
+            returnedObj = poppedObj
+        end
+    end
+
+    self:PopCallStack(PushPopType.FunctionEvaluationFromGame)
+
+    if returnedObj ~= nil then
+        if returnedObj:is(Void) then
+            return nil
+        end
+
+        local returnVal = inkutils.asOrNil(returnedObj, BaseValue)
+
+        if returnVal.valueType == "DivertTarget" then
+            return tostring(returnVal.valueObject)
+        end
+
+        return returnVal.valueObject
+    end
+
+    return nil
+end
+
+function StoryState:AddError(message, isWarning)
+    if not isWarning then
+        if self.currentErrors == nil then
+            self.currentErrors = {}
+        end
+        table.insert(self.currentErrors, message)
+    else
+        if self.currentWarnings == nil then
+            self.currentWarnings = {}
+        end
+        table.insert(self.currentWarnings, message)
     end
 end
 
@@ -412,6 +510,32 @@ end
 
 function StoryState:generatedChoices()
     return self._currentFlow._currentChoices
+end
+
+---Gets the visit/read count of a particular Container at the given path.
+---For a knot or stitch, that path string will be in the form:
+---
+---  - knot
+---  - knot.stitch
+---
+---@param pathString string The dot-separated path string of the specific knot or stitch.
+---@return number visitCount The number of times the specific knot or stitch has  been enountered by the ink engine.
+function StoryState:VisitCountAtPathString(pathString)
+    if self._patch ~= nil then
+        local container = self.story:ContentAtPath(pathString)
+        assert(container,"Content at path not found: ".. pathString )
+        local countResult = self._patch:TryGetVisitCount(container)
+        if countResult.exists then
+            return countResult.result
+        end
+    end
+
+    local visitCounts = self.visitCounts[pathString]
+    if visitCounts then
+        return visitCounts
+    end
+
+    return 0
 end
 
 function StoryState:VisitCountForContainer(container)
@@ -517,6 +641,12 @@ function StoryState:PeekEvaluationStack()
     return self.evaluationStack[#self.evaluationStack]
 end
 
+---Ends the current ink flow, unwrapping the callstack but without
+---affecting any variables. Useful if the ink is (say) in the middle
+---a nested tunnel, and you want it to reset so that you can divert
+--- elsewhere using ChoosePathString(). Otherwise, after finishing
+---the content you diverted to, it would continue where it left off.
+---Calling this is equivalent to calling -> END in ink.
 function StoryState:ForceEnd()
     self:callStack():Reset()
 
@@ -536,20 +666,13 @@ function StoryState:setInExpressionEvaluation(value)
     self:callStack():currentElement().inExpressionEvaluation = value
 end
 
-function StoryState:TryExitFunctionEvaluationFromGame()
-    local currEl = self:callStack():currentElement()
-    if currEl.type == PushPopType.FunctionEvaluationFromGame then
-        self:setCurrentPointer(Pointer:Null())
-        self.didSafeExit = true;
-        return true
-    end
-    return false
-end
-
 function StoryState:__tostring()
     return "StoryState"
 end
 
+---Cleans inline whitespace in the following way:
+---  - Removes all whitespace from the start and end of line (including just before a \n)
+---  - Turns all consecutive space and tab runs into single spaces (HTML style)
 function StoryState:CleanOutputWhitespace(str)
     local sb = {}
     local currentWhitespaceStart = 0
@@ -563,10 +686,10 @@ function StoryState:CleanOutputWhitespace(str)
         end
         if not isInlineWhiteSpace then
             if (
-                c ~= "\n"
-                and currentWhitespaceStart > 1
-                and currentWhitespaceStart ~= startOfLine
-            ) then
+                    c ~= "\n"
+                    and currentWhitespaceStart > 1
+                    and currentWhitespaceStart ~= startOfLine
+                ) then
                 table.insert(sb, " ")
             end
             currentWhitespaceStart = 0
@@ -672,9 +795,9 @@ function StoryState:SwitchFlow(flowName)
 
     local flow = self._namedFlows[flowName]
     if flow == nil then
-        flow = Flow(flowName, self.story)       
+        flow = Flow(flowName, self.story)
         self._namedFlows[flowName] = flow
-        self._aliveFlowNamesDirty = true 
+        self._aliveFlowNamesDirty = true
     end
 
     self._currentFlow = flow
@@ -701,7 +824,6 @@ function StoryState:RemoveFlow(flowName)
     self._namedFlows[flowName] = nil
     self._aliveFlowNamesDirty = true
 end
-
 
 function StoryState:CopyAndStartPatching()
     local copy = StoryState(self.story)
@@ -826,6 +948,7 @@ function StoryState:save()
     return save
 end
 
+---Loads a previously saved state in table format.
 function StoryState:load(jObject)
     local jSaveVersion = jObject["inkSaveVersion"]
     if jSaveVersion == nil or jSaveVersion < self.kMinCompatibleLoadVersion then
@@ -833,10 +956,10 @@ function StoryState:load(jObject)
     end
 
     local flowsCount = 0
-    
+
     local flowObjDict = jObject["flows"]
     if flowObjDict then
-        for _,_ in pairs(flowObjDict) do
+        for _, _ in pairs(flowObjDict) do
             flowsCount = flowsCount + 1
         end
         if flowsCount == 1 then

@@ -1,3 +1,4 @@
+---@class CallStack
 local CallStack = classic:extend()
 
 function CallStack:new(story)
