@@ -123,6 +123,8 @@ function Story:ContinueInternal(millisecsLimitAsync)
     durationStop = inkutils.resetElapsedTime()
 
     local outputStreamEndsInNewline = false
+    self._sawLookaheadUnsafeFunctionAfterNewLine = false
+
     repeat
         outputStreamEndsInNewline = self:ContinueSingleStep();
         if outputStreamEndsInNewline then break end
@@ -199,7 +201,7 @@ function Story:ContinueSingleStep()
                 #self._stateSnapshotAtLastNewline:currentTags(),
                 #self.state:currentTags()
             )
-            if change == "ExtendedBeyondNewline" then
+            if change == "ExtendedBeyondNewline" or self._sawLookaheadUnsafeFunctionAfterNewline then
                 self:RestoreStateSnapshot()
                 return true
             elseif change == "NewlineRemoved" then
@@ -524,6 +526,7 @@ function Story:PerformLogicAndFlowControl(contentObj)
             self.state.divertedPointer = self:PointerAtPath(varContents:targetPath())
         elseif currentDivert.isExternal then
             self:CallExternalFunction(currentDivert:targetPathString(), currentDivert.externalArgs)
+            return true
         else
             self.state.divertedPointer = currentDivert:targetPointer():Copy()
         end
@@ -1134,7 +1137,7 @@ end
 function Story:CallExternalFunction(funcName, numberOfArguments)
     local fallbackFunctionContainer = nil
     local funcDef = self:TryGetExternalFunction(funcName)
-    if funcDef~=nil and funcDef.lookaheadSafe == false and self.state.inStringEvaluation then
+    if funcDef~=nil and funcDef.lookaheadSafe == false and self.state:inStringEvaluation() then
         error("External function "..funcName.." could not be called because 1) it wasn't marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like \"hello {func()}\". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = "..funcName.."()")
     end
 
@@ -1198,7 +1201,7 @@ function Story:BindExternalFunction(funcName, func, lookaheadSafe)
     assert(self._externals[funcName]==nil, "Function '" ..funcName .. "' has already been bound.")
     self._externals[funcName] = {
         func = func,
-        lookaheadSafe = lookaheadSafe
+        lookaheadSafe = lookaheadSafe == true
     }
 end
 
