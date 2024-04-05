@@ -1164,8 +1164,8 @@ function Story:CallExternalFunction(funcName, numberOfArguments)
     local arguments = {}
     for i = numberOfArguments, 1, -1 do
         local poppedObj = inkutils.asOrNil(self.state:PopEvaluationStack(), BaseValue)
-        local valueObj = poppedObj.valueObj
-        table.insert(arguments, valueObj, i)
+        local valueObj = poppedObj.value
+        arguments[i] = valueObj
     end
 
     local returnObj
