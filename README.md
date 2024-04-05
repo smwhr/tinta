@@ -158,6 +158,22 @@ The first `Continue()` call will validate all external function bindings. If you
 
 You could remove bindings, but in that case you should have a fallback defined in ink or bind with another lua function immediately afterwards. Otherwise calling that function would result in error.
 
+**Note that external function only receives a table as its first argument.** If you declare your function in ink like this:
+
+```ink
+EXTERNAL someFunction(argumentA, argumentB)
+```
+
+Your lua function should be:
+
+```lua
+function someFunction(args)
+    local argumentA = args[1]
+    local argumentB = args[2]
+    -- do something with argumentA and argumentB
+end
+```
+
 ```lua
 story:UnbindExternalFunction("functionNameDeclaredInInk")
 ```
