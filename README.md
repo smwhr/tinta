@@ -147,6 +147,11 @@ Binding External Functions:
 local MyFunc(args)
     -- do stuff
 end
+
+-- by default, external functions are not look ahead safe.
+story:BindExternalFunction("functionNameDeclaredInInk", MyFunc)
+
+-- if your function is look ahead safe:
 story:BindExternalFunction("functionNameDeclaredInInk", MyFunc, true)
 ```
 
@@ -156,7 +161,7 @@ The first `Continue()` call will validate all external function bindings. If you
 
 **You can't bind multiple functions to the same external function declaration.** If you try to do so, it throws an error.
 
-You could remove bindings, but in that case you should have a fallback defined in ink or bind with another lua function immediately afterwards. Otherwise calling that function would result in error.
+
 
 **Note that external function only receives a table as its first argument.** If you declare your function in ink like this:
 
@@ -173,6 +178,8 @@ function someFunction(args)
     -- do something with argumentA and argumentB
 end
 ```
+
+You could remove bindings, but in that case you should have a fallback defined in ink or bind with another lua function immediately afterwards. Otherwise calling that function would result in error.
 
 ```lua
 story:UnbindExternalFunction("functionNameDeclaredInInk")
