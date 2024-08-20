@@ -125,6 +125,7 @@ function StoryState:currentTags()
                 table.insert(self._currentTags, outputObj.text)
             end
         end
+        self.outputStreamTagsDirty = false;
     end
     return self._currentTags
 end
