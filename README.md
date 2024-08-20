@@ -147,6 +147,11 @@ Binding External Functions:
 local MyFunc(args)
     -- do stuff
 end
+
+-- by default, external functions are not look ahead safe.
+story:BindExternalFunction("functionNameDeclaredInInk", MyFunc)
+
+-- if your function is look ahead safe:
 story:BindExternalFunction("functionNameDeclaredInInk", MyFunc, true)
 ```
 
@@ -155,6 +160,24 @@ Fallbacks are enabled by default. Which means if an external function is called 
 The first `Continue()` call will validate all external function bindings. If you forgot to bind an external function while the function has no fallback (or fallback is disabled), it throws an error. 
 
 **You can't bind multiple functions to the same external function declaration.** If you try to do so, it throws an error.
+
+
+
+**Note that external function only receives a table as its first argument.** If you declare your function in ink like this:
+
+```ink
+EXTERNAL someFunction(argumentA, argumentB)
+```
+
+Your lua function should be:
+
+```lua
+function someFunction(args)
+    local argumentA = args[1]
+    local argumentB = args[2]
+    -- do something with argumentA and argumentB
+end
+```
 
 You could remove bindings, but in that case you should have a fallback defined in ink or bind with another lua function immediately afterwards. Otherwise calling that function would result in error.
 
@@ -238,8 +261,22 @@ then in your lua code:
 ```lua
 import "../toyboxes/toyboxes"
 
-local storyDefinition = import("my_story")
-local story = Story(book)
+local my_story = import("my_story")
+local story = Story(my_story)
+```
+
+## Löve2D
+
+Download the full source code and copy the `source` folder inside your Löve2D game directory.  
+Rename this folder `tinta`.
+
+then in your lua code:
+
+```
+Story = require("tinta/love")
+
+local my_story = import("my_story")
+local story = Story(my_story)
 ```
 
 ## Notably missing features
