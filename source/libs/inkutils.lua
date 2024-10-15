@@ -20,6 +20,8 @@ local elapsedTime = nil
 function ink.resetElapsedTime()
     if playdate then
         playdate.resetElapsedTime()
+    elseif picotron then
+        elapsedTime = t()
     else
         elapsedTime = os.clock() * 1000
     end
@@ -28,6 +30,8 @@ end
 function ink.getElapsedTime()
     if playdate then
         return playdate.getElapsedTime()*1000
+    elseif picotron then
+        return t() - elapsedTime
     else
         return os.clock()*1000 - elapsedTime
     end
