@@ -171,7 +171,7 @@ end
 function StoryState:ResetOutput(objs) --add parameter when needed
     self._currentFlow.outputStream = {}
     if objs ~= nil then
-        for index, value in ipairs(t) do
+        for index, value in ipairs(objs) do
             table.insert(self._currentFlow.outputStream, value)
         end
     end
@@ -391,7 +391,7 @@ end
 
 function StoryState:StartFunctionEvaluationFromGame(funcContainer, arguments)
     self:callStack():Push(PushPopType.FunctionEvaluationFromGame, #self.evaluationStack)
-    self._currentFlow.callStack.currentPointer = Pointer:StartOf(funcContainer)
+    self:setCurrentPointer(Pointer:StartOf(funcContainer))
 
     self:PassArgumentsToEvaluationStack(arguments)
 end
@@ -425,14 +425,15 @@ function StoryState:TryExitFunctionEvaluationFromGame()
 end
 
 function StoryState:CompleteFunctionEvaluationFromGame()
-    if self:callStack().currentElement.type ~= PushPopType.FunctionEvaluationFromGame then
+    local currEl = self:callStack():currentElement()
+    if currEl.type ~= PushPopType.FunctionEvaluationFromGame then
         error("Expected external function evaluation to be complete. Stack trace: " .. self:callStack().callStackTrace)
     end
 
-    local originalEvaluationStackHeight = self:callStack().currentElement.evaluationStackHeightWhenPushed
+    local originalEvaluationStackHeight = currEl.evaluationStackHeightWhenPushed
 
     local returnedObj = nil
-    while self.evaluationStack > originalEvaluationStackHeight do
+    while #self.evaluationStack > originalEvaluationStackHeight do
         local poppedObj = self:PopEvaluationStack()
         if returnedObj == nil then
             returnedObj = poppedObj
@@ -452,7 +453,7 @@ function StoryState:CompleteFunctionEvaluationFromGame()
             return tostring(returnVal.valueObject)
         end
 
-        return returnVal.valueObject
+        return returnVal.value
     end
 
     return nil
