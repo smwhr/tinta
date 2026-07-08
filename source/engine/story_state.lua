@@ -766,7 +766,7 @@ function TrySplittingHeadTailWhitespace(single)
     end
 
     if tailLastNewlineIdx ~= 0 and tailFirstNewlineIdx > headLastNewlineIdx then
-        list.insert(listTexts, StringValue("\n"))
+        table.insert(listTexts, StringValue("\n"))
         if tailLastNewlineIdx < #str then
             local numSpaces = #str - tailLastNewlineIdx - 1
             local trailingSpaces = StringValue(
